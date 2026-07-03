@@ -300,7 +300,3 @@ The `ml_service` directory hosts three production inference pipelines, each back
 ## Contributing
 
 Contributions are welcome. Please open an issue to discuss significant changes before submitting a pull request, and ensure new code follows the existing MVC and service-boundary conventions described above.
-
-## License
-
-Specify your license here (e.g. MIT, Apache 2.0, or proprietary).
