@@ -1,29 +1,20 @@
+from io import BytesIO
+
 import numpy as np
+from PIL import Image
 
 def preprocess_image(image_bytes: bytes, target_size=(224, 224)) -> np.ndarray:
     """
-    Simulates tensor loading and image normalization:
-    Converts raw image bytes to (1, 224, 224, 3) normalized float array.
+    Decode an uploaded image, resize it to the model input shape,
+    normalize pixel values, and return a batched tensor.
     """
     try:
-        # Programmatic parsing: Convert bytes to array
-        arr = np.frombuffer(image_bytes, dtype=np.uint8)
-        
-        # Simulated decoding & resizing
-        # We construct a reproducible tensor shape (224, 224, 3) representing the image
-        seed_value = int(np.sum(arr) % 1000)
-        np.random.seed(seed_value)
-        
-        # Generate raw mock image grid based on magic seed
-        img_grid = np.random.randint(0, 255, size=(target_size[0], target_size[1], 3), dtype=np.uint8)
-        
-        # Float normalization (divide by 255.0 to map pixels between 0.0 and 1.0)
-        normalized_img = img_grid.astype(np.float32) / 255.0
-        
-        # Expand dimensions to create batch size: (1, 224, 224, 3)
-        batched_tensor = np.expand_dims(normalized_img, axis=0)
-        return batched_tensor
+        image = Image.open(BytesIO(image_bytes))
+        image = image.convert("RGB")
+        image = image.resize(target_size, Image.Resampling.BILINEAR)
+
+        image_array = np.asarray(image, dtype=np.float32) / 255.0
+        return np.expand_dims(image_array, axis=0)
     except Exception as e:
         print(f"[Preprocessing Error]: {e}")
-        # Default fallback tensor
         return np.zeros((1, target_size[0], target_size[1], 3), dtype=np.float32)

@@ -35,6 +35,7 @@ app.use('/api/auth', require('./routes/api.auth'));
 app.use('/api/farm', require('./routes/api.farm'));
 app.use('/api/market', require('./routes/api.market'));
 app.use('/api/analytics', require('./routes/api.analytics'));
+app.use('/api/logistics', require('./routes/api.logistics'));
 
 // System Health Check
 app.get('/health', (req, res) => {

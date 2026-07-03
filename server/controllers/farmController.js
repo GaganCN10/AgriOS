@@ -204,9 +204,13 @@ exports.updateCropStage = async (req, res) => {
     const { id } = req.params;
     const { stage, actual_yield_metric_tons } = req.body;
 
-    const cycle = await CropCycle.findById(id);
+    const cycle = await CropCycle.findById(id).populate('farm_id');
     if (!cycle) {
       return res.status(404).json({ error: 'Crop cycle record not found.' });
+    }
+
+    if (req.user.role === 'FARMER' && cycle.farm_id.owner_id.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized to update this crop cycle.' });
     }
 
     if (stage) {

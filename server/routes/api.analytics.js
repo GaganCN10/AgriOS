@@ -31,6 +31,12 @@ router.post(
 );
 
 router.post(
+  '/predict-prices',
+  premiumGating,
+  analyticsController.predictMarketPrices
+);
+
+router.post(
   '/advisor-chat', 
   premiumGating, 
   analyticsController.advisorChat
@@ -41,6 +47,11 @@ router.get(
   '/disease-logs', 
   authorization(['EXPERT']), 
   analyticsController.getDiseaseLogs
+);
+
+router.get(
+  '/disease-logs/mine',
+  analyticsController.getMyDiseaseLogs
 );
 
 router.post(

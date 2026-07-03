@@ -44,6 +44,7 @@ const seedSimulatedPrices = async (state, district) => {
 exports.getPrices = async (req, res) => {
   try {
     const { state, district } = req.query;
+    const userId = req.user.id;
 
     if (!state || !district) {
       return res.status(400).json({ error: 'Parameters "state" and "district" are required.' });
@@ -62,6 +63,38 @@ exports.getPrices = async (req, res) => {
       prices = await seedSimulatedPrices(state, district);
     }
 
+    const userAlerts = await Alert.find({ user_id: userId, is_triggered: false });
+    const triggeredAlerts = [];
+
+    for (const alert of userAlerts) {
+      const matchingPrice = prices.find((price) =>
+        price.crop_name.toLowerCase() === alert.crop_name.toLowerCase() &&
+        price.variety.toLowerCase() === alert.variety.toLowerCase()
+      );
+
+      if (!matchingPrice) {
+        continue;
+      }
+
+      const isTriggered = alert.comparison === 'ABOVE'
+        ? matchingPrice.modal_price >= alert.target_price
+        : matchingPrice.modal_price <= alert.target_price;
+
+      if (isTriggered) {
+        alert.is_triggered = true;
+        await alert.save();
+        triggeredAlerts.push({
+          id: alert._id,
+          crop_name: alert.crop_name,
+          variety: alert.variety,
+          target_price: alert.target_price,
+          comparison: alert.comparison,
+          modal_price: matchingPrice.modal_price,
+          market: matchingPrice.market
+        });
+      }
+    }
+
     return res.status(200).json({
       last_updated: prices[0] ? prices[0].price_date : new Date(),
       market_prices: prices.map(p => ({
@@ -72,7 +105,8 @@ exports.getPrices = async (req, res) => {
         min_price: p.min_price,
         max_price: p.max_price,
         modal_price: p.modal_price
-      }))
+      })),
+      triggered_alerts: triggeredAlerts
     });
   } catch (err) {
     console.error(`[Mandi Price Fetch Error]: ${err.message}`);
@@ -224,7 +258,7 @@ exports.createPriceAlert = async (req, res) => {
 
 exports.getAlerts = async (req, res) => {
   try {
-    const alerts = await Alert.find({ user_id: req.user.id });
+    const alerts = await Alert.find({ user_id: req.user.id }).sort({ createdAt: -1 });
     return res.status(200).json(alerts);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to fetch user price alerts.' });

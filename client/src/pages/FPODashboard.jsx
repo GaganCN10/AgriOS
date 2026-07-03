@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   Users, Sprout, TrendingUp, DollarSign, Plus, Check, X, 
   Layers, ChevronRight, User, LogOut, ArrowRight, Building,
-  BarChart3, RefreshCw, AlertTriangle, Zap, Calendar
+  BarChart3, RefreshCw, AlertTriangle, Zap, Calendar, Truck
 } from 'lucide-react';
+import FPOForecastPanel from './fpo/FPOForecastPanel';
+import FPOTraceabilityPanel from './fpo/FPOTraceabilityPanel';
 
 const FPODashboard = () => {
   const { user, logout, getAuthHeaders } = useAuth();
   const [activeTab, setActiveTab] = useState('catalogue');
   const [lots, setLots] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [traceRecords, setTraceRecords] = useState([]);
+  const [traceLoading, setTraceLoading] = useState(false);
   
   // Sale Lot compilation form
   const [showAddLot, setShowAddLot] = useState(false);
@@ -27,8 +31,26 @@ const FPODashboard = () => {
   // Price Forecast state
   const [forecastCrop, setForecastCrop] = useState('Rice');
   const [forecastVariety, setForecastVariety] = useState('Sona Masuri');
+  const [forecastState, setForecastState] = useState('Karnataka');
+  const [forecastDistrict, setForecastDistrict] = useState('Mysore');
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastResult, setForecastResult] = useState(null);
+
+  const [traceForm, setTraceForm] = useState({
+    lot_id: '',
+    handler_name: user.name || '',
+    dispatch_date: new Date().toISOString().slice(0, 10),
+    destination: '',
+    vehicle_number: '',
+    temperature_c: '',
+    humidity_percent: '',
+    moisture_percent: '',
+    ventilation: '',
+    grade: 'B',
+    weight_metric_tons: '',
+    logistics_status: 'READY',
+    notes: ''
+  });
 
   const fetchLots = async () => {
     try {
@@ -47,8 +69,26 @@ const FPODashboard = () => {
     }
   };
 
+  const fetchTraceRecords = async () => {
+    try {
+      setTraceLoading(true);
+      const res = await fetch('http://localhost:5000/api/logistics/trace/all', {
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTraceRecords(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTraceLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchLots();
+    fetchTraceRecords();
   }, []);
 
   const createSaleLot = async (e) => {
@@ -114,23 +154,84 @@ const FPODashboard = () => {
     }
   };
 
+  const createTraceRecord = async (e) => {
+    e.preventDefault();
+
+    try {
+      const payload = {
+        ...traceForm,
+        storage_environment: {
+          temperature_c: traceForm.temperature_c ? parseFloat(traceForm.temperature_c) : null,
+          humidity_percent: traceForm.humidity_percent ? parseFloat(traceForm.humidity_percent) : null,
+          ventilation: traceForm.ventilation || null
+        },
+        quality_grading: {
+          grade: traceForm.grade,
+          moisture_percent: traceForm.moisture_percent ? parseFloat(traceForm.moisture_percent) : null,
+          weight_metric_tons: parseFloat(traceForm.weight_metric_tons)
+        },
+        weight_metric_tons: undefined
+      };
+
+      const res = await fetch('http://localhost:5000/api/logistics/trace/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        alert('Traceability record saved.');
+        setTraceForm((prev) => ({
+          ...prev,
+          destination: '',
+          vehicle_number: '',
+          temperature_c: '',
+          humidity_percent: '',
+          moisture_percent: '',
+          ventilation: '',
+          weight_metric_tons: '',
+          notes: '',
+          logistics_status: 'READY'
+        }));
+        fetchTraceRecords();
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || 'Failed to save traceability record.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const runPriceForecast = async () => {
     setForecastLoading(true);
     setForecastResult(null);
     try {
-      const res = await fetch('http://localhost:5000/api/analytics/predict-yield', {
+      const res = await fetch('http://localhost:5000/api/analytics/predict-prices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ crop_name: forecastCrop, variety: forecastVariety, forecast_mode: true })
+        body: JSON.stringify({
+          crop_name: forecastCrop,
+          state: forecastState,
+          district: forecastDistrict,
+          last_price_90_days: 4000,
+          last_price_60_days: 4100,
+          last_price_30_days: 4200
+        })
       });
       const data = await res.json();
       setForecastResult(data);
     } catch (err) {
-      setForecastResult({ degradation_notice: 'ML sidecar unreachable. Displaying cached estimates.', estimated_price_trend: 'STABLE', forecast_7d: '+2.3%', forecast_30d: '-1.1%' });
+      setForecastResult({ degradation_notice: 'ML sidecar unreachable. Displaying cached estimates.', estimated_price_trend: 'STABLE', forecast_7d: 4230, forecast_30d: 4210, forecasted_prices_inr: [] });
     } finally {
       setForecastLoading(false);
     }
   };
+
+  const forecastSeries = useMemo(() => forecastResult?.forecasted_prices_inr || [], [forecastResult]);
 
   // Compute aggregated analytics from lots
   const totalVolume = lots.reduce((sum, l) => sum + l.total_quantity_metric_tons, 0);
@@ -188,6 +289,13 @@ const FPODashboard = () => {
             onClick={() => setActiveTab('forecast')}
           >
             <TrendingUp size={18} /> Price Forecast
+          </button>
+          <button 
+            className={`btn btn-secondary ${activeTab === 'traceability' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%' }}
+            onClick={() => setActiveTab('traceability')}
+          >
+            <Truck size={18} /> Traceability
           </button>
         </nav>
 
@@ -445,114 +553,30 @@ const FPODashboard = () => {
 
         {/* Tab: Price Forecast */}
         {activeTab === 'forecast' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <div className="glass-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div>
-                  <h2><TrendingUp size={20} style={{ display: 'inline', marginRight: 8, verticalAlign: 'text-bottom' }} />Market Price Intelligence</h2>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>ML-powered time-series forecasting to optimize your lot pricing strategy. Powered by Ridge regression on historical AGMARKNET data.</p>
-                </div>
-                <span className="badge badge-premium">ML Pipeline</span>
-              </div>
+          <FPOForecastPanel
+            forecastCrop={forecastCrop}
+            setForecastCrop={setForecastCrop}
+            forecastVariety={forecastVariety}
+            setForecastVariety={setForecastVariety}
+            forecastState={forecastState}
+            setForecastState={setForecastState}
+            forecastDistrict={forecastDistrict}
+            setForecastDistrict={setForecastDistrict}
+            forecastLoading={forecastLoading}
+            runPriceForecast={runPriceForecast}
+            forecastResult={forecastResult}
+          />
+        )}
 
-              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 24 }}>
-                <div className="input-group" style={{ marginBottom: 0, flex: 1, minWidth: 160 }}>
-                  <span className="input-label">Crop</span>
-                  <select className="input-field" value={forecastCrop} onChange={(e) => setForecastCrop(e.target.value)}>
-                    <option value="Rice">Rice</option>
-                    <option value="Wheat">Wheat</option>
-                    <option value="Tomato">Tomato</option>
-                    <option value="Onion">Onion</option>
-                  </select>
-                </div>
-                <div className="input-group" style={{ marginBottom: 0, flex: 1, minWidth: 160 }}>
-                  <span className="input-label">Variety</span>
-                  <input className="input-field" value={forecastVariety} onChange={(e) => setForecastVariety(e.target.value)} />
-                </div>
-                <button className="btn btn-primary" onClick={runPriceForecast} disabled={forecastLoading}>
-                  {forecastLoading ? <><RefreshCw className="animate-spin" size={16} /> Computing...</> : <><Zap size={16} /> Run Forecast</>}
-                </button>
-              </div>
-
-              {forecastResult && (
-                <div className="prediction-card">
-                  <span className="input-label" style={{ display: 'block', marginBottom: 12 }}>Forecast Results — {forecastCrop} ({forecastVariety})</span>
-                  <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
-                    <div>
-                      <span className="text-secondary" style={{ fontSize: '0.75rem' }}>7-DAY FORECAST</span>
-                      <h2 style={{ margin: '4px 0 0', fontSize: '1.8rem', color: 'var(--color-primary)' }}>{forecastResult.forecast_7d || '+2.3%'}</h2>
-                    </div>
-                    <div>
-                      <span className="text-secondary" style={{ fontSize: '0.75rem' }}>30-DAY FORECAST</span>
-                      <h2 style={{ margin: '4px 0 0', fontSize: '1.8rem', color: forecastResult.forecast_30d?.startsWith('-') ? 'var(--color-danger)' : 'var(--color-primary)' }}>{forecastResult.forecast_30d || '-1.1%'}</h2>
-                    </div>
-                    <div>
-                      <span className="text-secondary" style={{ fontSize: '0.75rem' }}>TREND DIRECTION</span>
-                      <h2 style={{ margin: '4px 0 0', fontSize: '1.8rem' }}>{forecastResult.estimated_price_trend || 'STABLE'}</h2>
-                    </div>
-                  </div>
-                  {forecastResult.degradation_notice && (
-                    <div style={{ marginTop: 16, fontSize: '0.8rem', color: 'var(--color-accent)', display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <AlertTriangle size={14} /> {forecastResult.degradation_notice}
-                    </div>
-                  )}
-                  {forecastResult.advisory && (
-                    <p style={{ marginTop: 12, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                      <strong>Advisory:</strong> {forecastResult.advisory}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Strategic pricing recommendation */}
-            <div className="grid-cols-2">
-              <div className="glass-panel">
-                <h2>Pricing Strategy Matrix</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
-                  {[
-                    { crop: 'Rice (Sona Masuri)', floor: 3800, ceiling: 4600, rec: 4200, trend: 'BULLISH' },
-                    { crop: 'Wheat (Sharbati)', floor: 2800, ceiling: 3400, rec: 3100, trend: 'STABLE' },
-                    { crop: 'Tomato (Local)', floor: 1400, ceiling: 2200, rec: 1800, trend: 'VOLATILE' },
-                    { crop: 'Onion (Red)', floor: 1800, ceiling: 2800, rec: 2200, trend: 'BEARISH' }
-                  ].map((item, idx) => (
-                    <div key={idx} className="glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px' }}>
-                      <div>
-                        <span style={{ fontWeight: 600 }}>{item.crop}</span>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>Range: ₹{item.floor} - ₹{item.ceiling}/Qtl</p>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>₹{item.rec}/Qtl</span>
-                        <span className={`badge ${item.trend === 'BULLISH' ? 'badge-active' : item.trend === 'BEARISH' ? 'badge-abandoned' : 'badge-premium'}`} style={{ display: 'block', marginTop: 4 }}>
-                          {item.trend}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="glass-panel">
-                <h2>Seasonal Calendar Outlook</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
-                  {[
-                    { month: 'June - July', event: 'Kharif Sowing Window', impact: 'HIGH', desc: 'Peak demand for seeds, fertilizers. FPO should stockpile and negotiate bulk seed purchases.' },
-                    { month: 'Aug - Sep', event: 'Monsoon Peak / Pest Risk', impact: 'MEDIUM', desc: 'Monitor disease outbreak risk. Coordinate group pesticide procurement.' },
-                    { month: 'Oct - Nov', event: 'Kharif Harvest Window', impact: 'HIGH', desc: 'Aggregate harvest lots immediately. Early buyers pay premium.' },
-                    { month: 'Dec - Jan', event: 'Rabi Sowing Phase', impact: 'LOW', desc: 'Wheat and mustard cycles begin. Market liquidity is moderate.' }
-                  ].map((s, idx) => (
-                    <div key={idx} className="glass-card" style={{ padding: '12px 16px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <span style={{ fontWeight: 600 }}>{s.month} — {s.event}</span>
-                        <span className={`badge ${s.impact === 'HIGH' ? 'badge-abandoned' : s.impact === 'MEDIUM' ? 'badge-premium' : 'badge-free'}`}>{s.impact} IMPACT</span>
-                      </div>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>{s.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+        {activeTab === 'traceability' && (
+          <FPOTraceabilityPanel
+            lots={lots}
+            traceRecords={traceRecords}
+            traceLoading={traceLoading}
+            traceForm={traceForm}
+            setTraceForm={setTraceForm}
+            createTraceRecord={createTraceRecord}
+          />
         )}
       </main>
     </div>

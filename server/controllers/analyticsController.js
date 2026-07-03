@@ -159,14 +159,86 @@ exports.predictYield = async (req, res) => {
     cycle.harvest_date_predicted = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); // adjust
     await cycle.save();
 
+    const yieldGapRatio = cycle.target_yield_metric_tons > 0
+      ? predicted_yield_tons / cycle.target_yield_metric_tons
+      : 0;
+
+    let advisory = 'Yield trend remains within the expected production band.';
+    if (yieldGapRatio < 0.85) {
+      advisory = 'Predicted output is below target. Review irrigation timing, nutrient balance, and pest pressure.';
+    } else if (yieldGapRatio > 1.05) {
+      advisory = 'Predicted output is above target. Maintain current crop management and monitor harvest logistics.';
+    }
+
     return res.status(200).json({
       predicted_yield_tons,
+      predicted_yield_metric_tons: predicted_yield_tons,
+      estimated_yield_metric_tons: predicted_yield_tons,
       baseline_variance,
+      confidence: 1 - baseline_variance,
+      advisory,
       warning: isOffline ? 'ML Regressor offline. Calculated yield via historical baseline averages.' : undefined
     });
   } catch (err) {
     console.error(`[Yield Predict Error]: ${err.message}`);
     return res.status(500).json({ error: 'Internal analytics processing failure.' });
+  }
+};
+
+exports.predictMarketPrices = async (req, res) => {
+  try {
+    const { crop_name, state, district, last_price_90_days, last_price_60_days, last_price_30_days } = req.body;
+
+    if (!crop_name || !state || !district) {
+      return res.status(400).json({ error: 'Crop name, state, and district are required.' });
+    }
+
+    const client = getSidecarClient();
+    let forecasted_prices_inr = [];
+    let isOffline = false;
+
+    try {
+      const response = await client.post('/prediction/prices', {
+        crop_name,
+        state,
+        district,
+        last_price_90_days: last_price_90_days || 4000,
+        last_price_60_days: last_price_60_days || 4100,
+        last_price_30_days: last_price_30_days || 4200
+      });
+
+      forecasted_prices_inr = response.data.forecasted_prices_inr || [];
+    } catch (err) {
+      console.warn(`[ML Price Forecaster Offline]: ${err.message}. Triggering fallback averaging.`);
+      isOffline = true;
+
+      const base = last_price_30_days || 4200;
+      forecasted_prices_inr = Array.from({ length: 30 }, (_, index) => {
+        const wave = Math.sin(index / 5) * (base * 0.05);
+        return parseFloat((base + wave).toFixed(2));
+      });
+    }
+
+    const forecast_7d = forecasted_prices_inr.length >= 7
+      ? forecasted_prices_inr[6]
+      : forecasted_prices_inr[forecasted_prices_inr.length - 1] || null;
+    const forecast_30d = forecasted_prices_inr[forecasted_prices_inr.length - 1] || null;
+    const startingPrice = last_price_30_days || forecasted_prices_inr[0] || 0;
+    const trendDelta = forecast_30d !== null ? ((forecast_30d - startingPrice) / startingPrice) : 0;
+
+    return res.status(200).json({
+      crop_name,
+      state,
+      district,
+      forecasted_prices_inr,
+      forecast_7d,
+      forecast_30d,
+      estimated_price_trend: trendDelta > 0.02 ? 'BULLISH' : trendDelta < -0.02 ? 'BEARISH' : 'STABLE',
+      degradation_notice: isOffline ? 'ML sidecar unavailable. Displaying model fallback forecast.' : undefined
+    });
+  } catch (err) {
+    console.error(`[Price Forecast Error]: ${err.message}`);
+    return res.status(500).json({ error: 'Internal price forecasting failure.' });
   }
 };
 
@@ -344,6 +416,18 @@ exports.getDiseaseLogs = async (req, res) => {
     return res.status(200).json(logs);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to retrieve crop disease records.' });
+  }
+};
+
+exports.getMyDiseaseLogs = async (req, res) => {
+  try {
+    const logs = await DiseaseLog.find({ farmer_id: req.user.id })
+      .populate('farm_id', 'farm_name district state')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json(logs);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to retrieve your crop disease records.' });
   }
 };
 

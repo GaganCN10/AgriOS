@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from ml_service.core.config import settings
 from ml_service.core.security import verify_internal_token
+from ml_service.core.model_registry import model_registry
 
 router = APIRouter(prefix="/prediction", tags=["prediction"])
 
@@ -42,10 +43,8 @@ def get_crop_code(crop_name: str) -> int:
 @router.post("/yield", dependencies=[Depends(verify_internal_token)])
 async def predict_yield(payload: YieldRequest):
     try:
-        # Load yield regressor model from pkl
-        with open(settings.YIELD_MODEL_PATH, "rb") as f:
-            model = pickle.load(f)
-            
+        model = model_registry.yield_model
+
         crop_code = get_crop_code(payload.crop_name)
         
         # Prepare input features vector: [hectares, n, p, k, ph, crop_code]
@@ -86,10 +85,8 @@ async def predict_yield(payload: YieldRequest):
 @router.post("/prices", dependencies=[Depends(verify_internal_token)])
 async def predict_prices(payload: PriceRequest):
     try:
-        # Load price forecaster Ridge model from pkl
-        with open(settings.PRICE_MODEL_PATH, "rb") as f:
-            model = pickle.load(f)
-            
+        model = model_registry.price_model
+
         crop_code = get_crop_code(payload.crop_name)
         
         # Forecast 30 days sequentially
