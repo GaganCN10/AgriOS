@@ -19,21 +19,46 @@ const FarmerFieldIntelligencePanel = ({
   userAlerts,
   createPriceAlert,
   fetchUserAlerts,
+  weatherData,
+  weatherLoading,
+  ndviData,
+  ndviLoading,
 }) => {
+  const weather = weatherData || {};
+  const ndvi = ndviData || {};
+  const meanNdvi = ndvi.mean_ndvi ?? 0.78;
+
+  const ndviLabel = meanNdvi > 0.7 ? "High Vigor Vigorously Green" : meanNdvi > 0.5 ? "Moderate Vegetation" : meanNdvi > 0.3 ? "Stress Detected" : "Drought / Bare Soil";
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div className="grid-cols-3">
         <div className="glass-panel">
           <span className="text-secondary" style={{ fontSize: '0.8rem' }}>VEGETATIONAL INDEX (NDVI)</span>
-          <h2 style={{ color: 'var(--color-primary)', fontSize: '2.5rem', fontWeight: 800, margin: '8px 0' }}>0.78</h2>
-          <span className="badge badge-active">High Vigor Vigorously Green</span>
+          <h2 style={{ color: 'var(--color-primary)', fontSize: '2.5rem', fontWeight: 800, margin: '8px 0' }}>
+            {meanNdvi.toFixed(2)}
+          </h2>
+          <span className="badge badge-active">{ndviLabel}</span>
         </div>
         <div className="glass-panel">
           <span className="text-secondary" style={{ fontSize: '0.8rem' }}>LOCAL GRID WEATHER FORECAST</span>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.5rem' }}>28.5°C</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Rain: 120mm accum.</p>
+              {weatherLoading ? (
+                <RefreshCw className="animate-spin" size={20} />
+              ) : weather.temperature_celsius !== undefined ? (
+                <>
+                  <h3 style={{ margin: 0, fontSize: '1.5rem' }}>{weather.temperature_celsius}°C</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {weather.description || "Clear"} • Humidity: {weather.humidity_percent}% • Wind: {weather.wind_speed_mps} m/s
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text-muted)' }}>--</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Configure OPENWEATHER_API_KEY to enable live weather</p>
+                </>
+              )}
             </div>
             <CloudSun size={36} className="text-primary" />
           </div>
@@ -41,9 +66,11 @@ const FarmerFieldIntelligencePanel = ({
         <div className="glass-panel">
           <span className="text-secondary" style={{ fontSize: '0.8rem' }}>SOIL NITRIC LEVEL BALANCE</span>
           <h2 style={{ fontSize: '2.5rem', fontWeight: 800, margin: '8px 0', color: '#38bdf8' }}>
-            {selectedFarm.soil_profile.nitrogen_level} <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>mg/kg</span>
+            {selectedFarm?.soil_profile?.nitrogen_level ?? '--'} <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>mg/kg</span>
           </h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>pH factor: {selectedFarm.soil_profile.ph_level}</p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            pH factor: {selectedFarm?.soil_profile?.ph_level ?? '--'}
+          </p>
         </div>
       </div>
 
@@ -67,14 +94,18 @@ const FarmerFieldIntelligencePanel = ({
           ) : mandiPrices.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, overflowY: 'auto', maxHeight: 350 }}>
               {mandiPrices.map((price) => (
-                <div key={price.id} className="glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={price.id || price.crop + price.variety} className="glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h3 style={{ margin: 0 }}>{price.crop} ({price.variety})</h3>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{price.market}</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      {price.district ? `${price.district}, ${price.state}` : price.unit || 'Local Mandi'}
+                    </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)' }}>INR {price.modal_price} / Qtl</span>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Range: {price.min_price} - {price.max_price}</p>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)' }}>INR {price.modal_price ?? price.price} / {price.unit || 'Qtl'}</span>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {price.min_price && price.max_price ? `Range: ${price.min_price} - ${price.max_price}` : ''}
+                    </p>
                   </div>
                 </div>
               ))}

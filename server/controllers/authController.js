@@ -1,113 +1,104 @@
-const User = require('../models/User');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
 exports.register = async (req, res) => {
+  const { name, email, password, role } = req.body;
+
   try {
-    const { name, email, password, role, subscription_tier } = req.body;
+    let user = await User.findOne({ email });
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Please provide name, email, and password.' });
+    if (user) {
+      return res.status(400).json({ error: "User already exists" });
     }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      return res.status(400).json({ error: 'A user with this email address already exists.' });
-    }
-
-    // Hash the password
-    const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(password, salt);
-
-    // Create the user
-    const newUser = new User({
+    user = new User({
       name,
-      email: email.toLowerCase(),
-      password_hash,
-      role: role || 'FARMER',
-      subscription_tier: subscription_tier || 'FREE'
+      email,
+      password_hash: password,
+      role
     });
 
-    await newUser.save();
+    const salt = await bcrypt.genSalt(10);
+    user.password_hash = await bcrypt.hash(password, salt);
 
-    // Sign a token
-    const token = jwt.sign(
-      { id: newUser._id, email: newUser.email, role: newUser.role, subscription_tier: newUser.subscription_tier },
-      process.env.JWT_SECRET || 'agrios_jwt_secret_token_2026_xyz',
-      { expiresIn: '30d' }
-    );
+    await user.save();
 
-    return res.status(201).json({
-      token,
+    const payload = {
       user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-        subscription_tier: newUser.subscription_tier,
-        api_usage_counter: newUser.api_usage_counter
+        id: user.id,
+        role: user.role
       }
-    });
+    };
+
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: "5h" },
+      (err, token) => {
+        if (err) throw err;
+        res.status(201).json({ 
+          token, 
+          user: { 
+            id: user.id, 
+            name: user.name,
+            email: user.email,
+            role: user.role, 
+            subscription_tier: user.subscription_tier 
+          } 
+        });
+      }
+    );
   } catch (err) {
-    console.error(`[Register Error]: ${err.message}`);
-    return res.status(500).json({ error: 'Internal registration failure.' });
+    console.error(err.message);
+    res.status(500).send("Server error");
   }
 };
 
-exports.login = async (req, res) => {
+exports.registerUser = exports.register;
+
+exports.loginUser = async (req, res) => {
+  const { email, password } = req.body;
+
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Please provide email and password.' });
-    }
-
-    // Find the user
-    const user = await User.findOne({ email: email.toLowerCase() });
+    let user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
+      return res.status(400).json({ msg: "Invalid Credentials" });
     }
 
-    // Compare passwords
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
+      return res.status(400).json({ msg: "Invalid Credentials" });
     }
 
-    // Sign a token
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role, subscription_tier: user.subscription_tier },
-      process.env.JWT_SECRET || 'agrios_jwt_secret_token_2026_xyz',
-      { expiresIn: '30d' }
-    );
-
-    return res.status(200).json({
-      token,
+    const payload = {
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        subscription_tier: user.subscription_tier,
-        api_usage_counter: user.api_usage_counter
+        id: user.id,
+        role: user.role
       }
-    });
-  } catch (err) {
-    console.error(`[Login Error]: ${err.message}`);
-    return res.status(500).json({ error: 'Internal authentication failure.' });
-  }
-};
+    };
 
-exports.getProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password_hash');
-    if (!user) {
-      return res.status(404).json({ error: 'User profile not found.' });
-    }
-    return res.status(200).json(user);
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: "5h" },
+      (err, token) => {
+        if (err) throw err;
+        res.json({ 
+          token, 
+          user: { 
+            id: user.id, 
+            name: user.name,
+            email: user.email,
+            role: user.role, 
+            subscription_tier: user.subscription_tier 
+          } 
+        });
+      }
+    );
   } catch (err) {
-    return res.status(500).json({ error: 'Internal profile retrieval failure.' });
+    console.error(err.message);
+    res.status(500).send("Server error");
   }
 };
 
@@ -115,34 +106,43 @@ exports.updateProfile = async (req, res) => {
   try {
     const { subscription_tier } = req.body;
     const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User profile not found.' });
-    }
     
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
     if (subscription_tier) {
       user.subscription_tier = subscription_tier;
+      await user.save();
     }
-    
-    await user.save();
-    
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role, subscription_tier: user.subscription_tier },
-      process.env.JWT_SECRET || 'agrios_jwt_secret_token_2026_xyz',
-      { expiresIn: '30d' }
-    );
 
-    return res.status(200).json({
-      token,
+    const payload = {
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        subscription_tier: user.subscription_tier,
-        api_usage_counter: user.api_usage_counter
+        id: user.id,
+        role: user.role
       }
-    });
+    };
+
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: "5h" },
+      (err, token) => {
+        if (err) throw err;
+        res.json({ 
+          token, 
+          user: { 
+            id: user.id, 
+            name: user.name,
+            email: user.email,
+            role: user.role, 
+            subscription_tier: user.subscription_tier 
+          } 
+        });
+      }
+    );
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to update subscription tier.' });
+    console.error(err.message);
+    res.status(500).send("Server error");
   }
 };

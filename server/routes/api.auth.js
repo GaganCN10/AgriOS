@@ -1,14 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const authentication = require('../middlewares/authentication');
+const authMiddleware = require('../middlewares/authentication');
+const { handleValidationErrors, sanitizeName, sanitizeEmail, sanitizePassword, sanitizeRole } = require('../middlewares/sanitize');
 
-// Public auth endpoints
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-
-// Private profile endpoints
-router.get('/profile', authentication, authController.getProfile);
-router.put('/profile', authentication, authController.updateProfile);
+router.post('/register', [
+  sanitizeName(),
+  sanitizeEmail(),
+  sanitizePassword(),
+  sanitizeRole(),
+  handleValidationErrors,
+], authController.registerUser);
+router.post('/login', [
+  sanitizeEmail(),
+  sanitizePassword(),
+  handleValidationErrors,
+], authController.loginUser);
+router.put('/profile', authMiddleware, authController.updateProfile);
 
 module.exports = router;

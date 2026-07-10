@@ -1,7 +1,7 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const FarmSchema = new mongoose.Schema({
-  owner_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  owner_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
   farm_name: { type: String, required: true },
   state: { type: String, required: true },
   district: { type: String, required: true },
@@ -9,8 +9,8 @@ const FarmSchema = new mongoose.Schema({
   survey_number: { type: String, required: true },
   calculated_area_hectares: { type: Number, required: true },
   boundary_polygon: {
-    type: { type: String, enum: ['Polygon'], required: true },
-    coordinates: { type: [[[Number]]], required: true } // GeoJSON formatting: closed ring
+    type: { type: String, enum: ["Polygon"], required: true },
+    coordinates: { type: [[[Number]]], required: true } // GeoJSON formatting
   },
   soil_profile: {
     nitrogen_level: { type: Number, default: 0 },
@@ -20,5 +20,5 @@ const FarmSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-FarmSchema.index({ boundary_polygon: '2dsphere' });
-module.exports = mongoose.model('Farm', FarmSchema);
+FarmSchema.index({ boundary_polygon: "2dsphere" });
+module.exports = mongoose.model("Farm", FarmSchema);

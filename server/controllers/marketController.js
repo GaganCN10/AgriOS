@@ -1,266 +1,106 @@
-const MandiPrice = require('../models/MandiPrice');
-const ConsolidatedLot = require('../models/ConsolidatedLot');
-const Alert = require('../models/Alert');
+const axios = require("axios");
+const MandiPrice = require("../models/MandiPrice");
+const Alert = require("../models/Alert");
+const User = require("../models/User");
+const { sendPriceAlertEmail } = require("../services/emailService");
 
-// Helper to seed simulated AGMARKNET prices if cache is empty for query
-const seedSimulatedPrices = async (state, district) => {
-  const sampleCrops = [
-    { crop: 'Rice', variety: 'Sona Masuri', base: 4200 },
-    { crop: 'Rice', variety: 'Jyothi', base: 3800 },
-    { crop: 'Wheat', variety: 'Lok-1', base: 2600 },
-    { crop: 'Wheat', variety: 'Sharbati', base: 3100 },
-    { crop: 'Tomato', variety: 'Local', base: 1800 },
-    { crop: 'Onion', variety: 'Red', base: 2200 },
-    { crop: 'Potato', variety: 'Jyoti', base: 1500 }
-  ];
+exports.getMarketPrices = async (req, res) => {
+  const { state, district } = req.query;
 
-  const seeded = [];
-  const today = new Date();
-  
-  for (const item of sampleCrops) {
-    const variance = (Math.random() - 0.5) * 400; // variance of +/- 200 INR
-    const min_price = Math.round(item.base - 200 + variance);
-    const max_price = Math.round(item.base + 200 + variance);
-    const modal_price = Math.round((min_price + max_price) / 2);
-
-    const priceRecord = new MandiPrice({
-      state,
-      district,
-      market: `${district} Central Mandi`,
-      crop_name: item.crop,
-      variety: item.variety,
-      min_price,
-      max_price,
-      modal_price,
-      price_date: today
-    });
-
-    await priceRecord.save();
-    seeded.push(priceRecord);
-  }
-  return seeded;
-};
-
-exports.getPrices = async (req, res) => {
   try {
-    const { state, district } = req.query;
-    const userId = req.user.id;
-
-    if (!state || !district) {
-      return res.status(400).json({ error: 'Parameters "state" and "district" are required.' });
-    }
-
-    // Query cached mandi prices (within last 24 hours to match caching logic)
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    let prices = await MandiPrice.find({
-      state: { $regex: new RegExp(state, 'i') },
-      district: { $regex: new RegExp(district, 'i') },
-      createdAt: { $gte: cutoff }
-    });
-
-    if (prices.length === 0) {
-      // Seed dynamically if cache is cold
-      prices = await seedSimulatedPrices(state, district);
-    }
-
-    const userAlerts = await Alert.find({ user_id: userId, is_triggered: false });
-    const triggeredAlerts = [];
-
-    for (const alert of userAlerts) {
-      const matchingPrice = prices.find((price) =>
-        price.crop_name.toLowerCase() === alert.crop_name.toLowerCase() &&
-        price.variety.toLowerCase() === alert.variety.toLowerCase()
-      );
-
-      if (!matchingPrice) {
-        continue;
-      }
-
-      const isTriggered = alert.comparison === 'ABOVE'
-        ? matchingPrice.modal_price >= alert.target_price
-        : matchingPrice.modal_price <= alert.target_price;
-
-      if (isTriggered) {
-        alert.is_triggered = true;
-        await alert.save();
-        triggeredAlerts.push({
-          id: alert._id,
-          crop_name: alert.crop_name,
-          variety: alert.variety,
-          target_price: alert.target_price,
-          comparison: alert.comparison,
-          modal_price: matchingPrice.modal_price,
-          market: matchingPrice.market
-        });
-      }
-    }
-
-    return res.status(200).json({
-      last_updated: prices[0] ? prices[0].price_date : new Date(),
-      market_prices: prices.map(p => ({
-        id: p._id,
-        market: p.market,
-        crop: p.crop_name,
-        variety: p.variety,
-        min_price: p.min_price,
-        max_price: p.max_price,
-        modal_price: p.modal_price
-      })),
-      triggered_alerts: triggeredAlerts
-    });
-  } catch (err) {
-    console.error(`[Mandi Price Fetch Error]: ${err.message}`);
-    return res.status(500).json({ error: 'Failed to retrieve wholesale prices.' });
-  }
-};
-
-exports.createConsolidatedLot = async (req, res) => {
-  try {
-    const { crop_name, variety, total_quantity_metric_tons, expected_price_per_ton_inr, member_contributions } = req.body;
-    const fpo_admin_id = req.user.id;
-
-    if (!crop_name || !variety || !total_quantity_metric_tons || !expected_price_per_ton_inr) {
-      return res.status(400).json({ error: 'Missing parameters for consolidated lot creation.' });
-    }
-
-    const newLot = new ConsolidatedLot({
-      fpo_admin_id,
-      crop_name,
-      variety,
-      total_quantity_metric_tons,
-      expected_price_per_ton_inr,
-      member_contributions: member_contributions || [],
-      status: 'AVAILABLE'
-    });
-
-    await newLot.save();
-    return res.status(201).json({ status: 'success', lot_id: newLot._id, lot: newLot });
-  } catch (err) {
-    console.error(`[Create Consolidated Lot Error]: ${err.message}`);
-    return res.status(500).json({ error: 'Failed to compile bulk harvest lot.' });
-  }
-};
-
-exports.getConsolidatedLots = async (req, res) => {
-  try {
-    const lots = await ConsolidatedLot.find()
-      .populate('fpo_admin_id', 'name email')
-      .populate('member_contributions.farmer_id', 'name email');
-    return res.status(200).json(lots);
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to retrieve bulk lots catalogue.' });
-  }
-};
-
-exports.placeBid = async (req, res) => {
-  try {
-    const { lot_id, bid_price_per_ton_inr } = req.body;
-    const buyer_id = req.user.id;
-
-    if (!lot_id || !bid_price_per_ton_inr) {
-      return res.status(400).json({ error: 'Missing lot ID or bid price.' });
-    }
-
-    const lot = await ConsolidatedLot.findById(lot_id);
-    if (!lot) {
-      return res.status(404).json({ error: 'Consolidated lot not found.' });
-    }
-
-    // Push new bid
-    lot.bids.push({
-      buyer_id,
-      bid_price_per_ton_inr,
-      status: 'PENDING'
-    });
+    let marketPrices = await MandiPrice.findOne({ state, district }).sort({ last_updated: -1 });
     
-    lot.status = 'BIDDED';
-    await lot.save();
+    const triggeredAlerts = [];
+    if (marketPrices && marketPrices.market_prices) {
+      const userAlerts = await Alert.find({ user_id: req.user.id, triggered: false });
+      for (const alert of userAlerts) {
+        const currentCropPrice = marketPrices.market_prices.find(mp => 
+          mp.crop.toLowerCase() === alert.crop_name.toLowerCase() &&
+          (alert.variety === "Any" || mp.variety.toLowerCase() === alert.variety.toLowerCase())
+        );
 
-    return res.status(200).json({ status: 'success', bids: lot.bids });
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to record B2B purchase bid.' });
-  }
-};
+        if (currentCropPrice) {
+          let shouldTrigger = false;
+          if (alert.comparison === "ABOVE" && currentCropPrice.price >= alert.target_price) {
+            shouldTrigger = true;
+          } else if (alert.comparison === "BELOW" && currentCropPrice.price <= alert.target_price) {
+            shouldTrigger = true;
+          }
 
-exports.respondToBid = async (req, res) => {
-  try {
-    const { lot_id, bid_id, action } = req.body; // action: 'ACCEPT' or 'REJECT'
-    const fpo_admin_id = req.user.id;
+          if (shouldTrigger) {
+            alert.triggered = true;
+            alert.triggered_date = new Date();
+            alert.triggered_price = currentCropPrice.price;
+            alert.market = `${district} Mandi`;
+            await alert.save();
+            triggeredAlerts.push(alert);
 
-    if (!lot_id || !bid_id || !action) {
-      return res.status(400).json({ error: 'Missing parameters for bid response.' });
-    }
-
-    const lot = await ConsolidatedLot.findById(lot_id);
-    if (!lot) {
-      return res.status(404).json({ error: 'Consolidated lot not found.' });
-    }
-
-    // Verify FPO admin ownership
-    if (lot.fpo_admin_id.toString() !== fpo_admin_id) {
-      return res.status(403).json({ error: 'Unauthorized to respond to bids on this lot.' });
-    }
-
-    const bid = lot.bids.id(bid_id);
-    if (!bid) {
-      return res.status(404).json({ error: 'Bid not found.' });
-    }
-
-    if (action === 'ACCEPT') {
-      bid.status = 'ACCEPTED';
-      lot.status = 'CONTRACTED';
-      // Reject all other bids
-      lot.bids.forEach(b => {
-        if (b._id.toString() !== bid_id) {
-          b.status = 'REJECTED';
+            const user = await User.findById(req.user.id).select("name email");
+            if (user && user.email) {
+              sendPriceAlertEmail({
+                to: user.email,
+                crop_name: alert.crop_name,
+                variety: alert.variety,
+                target_price: alert.target_price,
+                market: alert.market,
+                comparison: alert.comparison,
+                triggered_price: currentCropPrice.price,
+              }).catch((emailErr) => {
+                console.error("[Email Alert Error]:", emailErr.message);
+              });
+            }
+          }
         }
-      });
-    } else {
-      bid.status = 'REJECTED';
-      // If no other pending bids, return status to AVAILABLE
-      const hasOtherPending = lot.bids.some(b => b.status === 'PENDING');
-      if (!hasOtherPending) {
-        lot.status = 'AVAILABLE';
       }
     }
 
-    await lot.save();
-    return res.status(200).json({ status: 'success', lot });
+    if (marketPrices) {
+      return res.json({ ...marketPrices.toObject(), triggered_alerts: triggeredAlerts });
+    }
+
+    const mockPrices = {
+      last_updated: new Date(),
+      market_prices: [
+        { crop: "Wheat", variety: "Local", price: 2000, unit: "INR/Quintal" },
+        { crop: "Rice", variety: "Sona Masuri", price: 3000, unit: "INR/Quintal" },
+      ],
+    };
+
+    const newMandiPrice = new MandiPrice({ state, district, ...mockPrices });
+    await newMandiPrice.save();
+    
+    res.json({ ...mockPrices, triggered_alerts: triggeredAlerts });
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to respond to procurement bid.' });
+    console.error(err.message);
+    res.status(500).send("Server Error");
   }
 };
 
 exports.createPriceAlert = async (req, res) => {
+  const { crop_name, variety, target_price, comparison } = req.body;
+
   try {
-    const { crop_name, variety, target_price, comparison } = req.body;
-    const user_id = req.user.id;
-
-    if (!crop_name || !variety || !target_price) {
-      return res.status(400).json({ error: 'Missing price alert parameters.' });
-    }
-
     const newAlert = new Alert({
-      user_id,
+      user_id: req.user.id,
       crop_name,
-      variety,
+      variety: variety || "Any",
       target_price,
-      comparison: comparison || 'ABOVE',
-      is_triggered: false
+      comparison
     });
-
-    await newAlert.save();
-    return res.status(201).json({ status: 'success', alert: newAlert });
+    const alert = await newAlert.save();
+    res.status(201).json({ status: "success", alert_id: alert.id, alert });
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to register price alert.' });
+    console.error(err.message);
+    res.status(500).send("Server Error");
   }
 };
 
-exports.getAlerts = async (req, res) => {
+exports.getUserAlerts = async (req, res) => {
   try {
     const alerts = await Alert.find({ user_id: req.user.id }).sort({ createdAt: -1 });
-    return res.status(200).json(alerts);
+    res.json(alerts);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to fetch user price alerts.' });
+    console.error(err.message);
+    res.status(500).send("Server Error");
   }
 };

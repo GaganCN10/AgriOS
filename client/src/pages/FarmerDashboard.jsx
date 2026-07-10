@@ -4,13 +4,17 @@ import {
   Sprout, CloudSun, DollarSign, BrainCircuit, ShieldAlert, 
   ChevronRight, Calendar, User, LogOut, CheckCircle, HelpCircle, 
   MapPin, Plus, FileText, Download, Send, RefreshCw, AlertTriangle,
-  Bell, Target, TrendingUp, Zap, Check
+  Bell, Target, TrendingUp, Zap, Check, Package, Wrench, ClipboardList,
+  BookOpen
 } from 'lucide-react';
 import FarmerAdvisorPanel from './farmer/FarmerAdvisorPanel';
 import FarmerDiagnosticsPanel from './farmer/FarmerDiagnosticsPanel';
 import FarmerFinancialPanel from './farmer/FarmerFinancialPanel';
 import FarmerFieldIntelligencePanel from './farmer/FarmerFieldIntelligencePanel';
 import FarmerCropOperationsPanel from './farmer/FarmerCropOperationsPanel';
+import FarmerResourcesPanel from './farmer/FarmerResourcesPanel';
+import FarmerTaskPanel from './farmer/FarmerTaskPanel';
+import KnowledgeBasePanel from './KnowledgeBasePanel';
 
 const FarmerDashboard = () => {
   const { user, logout, getAuthHeaders, upgradeSubscription } = useAuth();
@@ -91,6 +95,12 @@ const FarmerDashboard = () => {
   const [targetAlertVariety, setTargetAlertVariety] = useState('Sona Masuri');
   const [targetAlertPrice, setTargetAlertPrice] = useState('');
 
+  // Weather & NDVI State
+  const [weatherData, setWeatherData] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [ndviData, setNdviData] = useState(null);
+  const [ndviLoading, setNdviLoading] = useState(false);
+
   // Financial Profile State
   const [finProfile, setFinProfile] = useState(null);
   const [finLoading, setFinLoading] = useState(false);
@@ -126,10 +136,14 @@ const FarmerDashboard = () => {
       fetchCropCycles(selectedFarm._id);
       fetchMandiPrices(selectedFarm.state, selectedFarm.district);
       fetchFinancialProfile(selectedFarm._id);
+      fetchWeather(selectedFarm._id);
+      fetchNDVI(selectedFarm._id);
     } else {
       setCropCycles([]);
       setActiveCycle(null);
       setFinProfile(null);
+      setWeatherData(null);
+      setNdviData(null);
     }
   }, [selectedFarm]);
 
@@ -164,6 +178,46 @@ const FarmerDashboard = () => {
       console.error(err);
     } finally {
       setMandiLoading(false);
+    }
+  };
+
+  const fetchWeather = async (farmId) => {
+    try {
+      setWeatherLoading(true);
+      const res = await fetch(`http://localhost:5000/api/weather/farm/${farmId}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setWeatherData(data.weather);
+      } else {
+        setWeatherData(null);
+      }
+    } catch (err) {
+      console.error(err);
+      setWeatherData(null);
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
+  const fetchNDVI = async (farmId) => {
+    try {
+      setNdviLoading(true);
+      const res = await fetch(`http://localhost:5000/api/geospatial/ndvi/${farmId}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (res.ok && data.data) {
+        setNdviData(data.data);
+      } else {
+        setNdviData(null);
+      }
+    } catch (err) {
+      console.error(err);
+      setNdviData(null);
+    } finally {
+      setNdviLoading(false);
     }
   };
 
@@ -210,29 +264,49 @@ const FarmerDashboard = () => {
         ctx.strokeStyle = '#10b981';
         ctx.fillStyle = '#10b981';
         ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(drawCoords[0][0], drawCoords[0][1], 5, 0, Math.PI * 2);
-        ctx.fill();
-
+        
+        // Draw connecting lines
         ctx.beginPath();
         ctx.moveTo(drawCoords[0][0], drawCoords[0][1]);
         for (let idx = 1; idx < drawCoords.length; idx++) {
           ctx.lineTo(drawCoords[idx][0], drawCoords[idx][1]);
-          ctx.arc(drawCoords[idx][0], drawCoords[idx][1], 3, 0, Math.PI * 2);
+        }
+        // Close the polygon if we have at least 3 points
+        if (drawCoords.length >= 3) {
+          ctx.lineTo(drawCoords[0][0], drawCoords[0][1]);
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.1)';
           ctx.fill();
-          ctx.moveTo(drawCoords[idx][0], drawCoords[idx][1]);
         }
         ctx.stroke();
+
+        // Draw vertices
+        drawCoords.forEach((coord, idx) => {
+          ctx.beginPath();
+          ctx.arc(coord[0], coord[1], idx === 0 ? 6 : 4, 0, Math.PI * 2);
+          ctx.fillStyle = idx === 0 ? '#34d399' : '#10b981';
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        });
       }
     }
   }, [showAddFarm, drawCoords]);
 
   const handleCanvasClick = (e) => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = Math.round(e.clientX - rect.left);
-    const y = Math.round(e.clientY - rect.top);
-    setDrawCoords([...drawCoords, [x, y]]);
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = Math.round((e.clientX - rect.left) * scaleX);
+    const y = Math.round((e.clientY - rect.top) * scaleY);
+    setDrawCoords(prev => [...prev, [x, y]]);
+  };
+
+  const handleCanvasMouseDown = (e) => {
+    e.preventDefault();
+    handleCanvasClick(e);
   };
 
   const clearCanvas = () => {
@@ -539,47 +613,50 @@ const FarmerDashboard = () => {
   };
 
   // NDVI Canvas simulation helper
-  const renderNDVICanvas = (canvasId) => {
+  const renderNDVICanvas = (canvasId, ndviMatrix) => {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Render multi-spectral simulated bands (Green vegetated patches, yellow stress lines)
-    const size = 35;
-    for (let x = 0; x < canvas.width; x += size) {
-      for (let y = 0; y < canvas.height; y += size) {
-        // Calculate dynamic NDVI index representing vegetational density (0.0 to 1.0)
-        // High index: Healthy green. Low index: Yellow drought stress
-        const ndviVal = parseFloat((0.45 + (Math.sin(x/50) * Math.cos(y/50) * 0.4) + Math.random() * 0.1).toFixed(2));
+
+    const matrix = ndviMatrix || [];
+    const rows = matrix.length || 8;
+    const cols = matrix[0]?.length || 8;
+    const cellW = canvas.width / cols;
+    const cellH = canvas.height / rows;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const ndviVal = matrix[r]?.[c] ?? parseFloat((0.35 + Math.random() * 0.5).toFixed(2));
         
-        // Define fill colors
         if (ndviVal > 0.7) {
-          ctx.fillStyle = `rgba(5, 150, 105, ${ndviVal - 0.2})`; // Dense emerald
+          ctx.fillStyle = `rgba(5, 150, 105, ${Math.min(1, ndviVal)})`;
         } else if (ndviVal > 0.5) {
-          ctx.fillStyle = `rgba(16, 185, 129, ${ndviVal - 0.2})`; // Light green
+          ctx.fillStyle = `rgba(16, 185, 129, ${Math.min(1, ndviVal)})`;
         } else if (ndviVal > 0.3) {
-          ctx.fillStyle = `rgba(245, 158, 11, ${1 - ndviVal})`; // Amber stress
+          ctx.fillStyle = `rgba(245, 158, 11, ${Math.min(1, 1 - ndviVal + 0.3)})`;
         } else {
-          ctx.fillStyle = `rgba(239, 68, 68, 0.4)`; // Red/dry patch
+          ctx.fillStyle = `rgba(239, 68, 68, 0.4)`;
         }
-        ctx.fillRect(x, y, size, size);
-        ctx.strokeStyle = 'rgba(255,255,255,0.02)';
-        ctx.strokeRect(x, y, size, size);
         
-        // Render tiny NDVI value text overlay
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.font = '8px monospace';
-        ctx.fillText(ndviVal.toString(), x + 4, y + 20);
+        ctx.fillRect(c * cellW, r * cellH, cellW, cellH);
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(c * cellW, r * cellH, cellW, cellH);
+        
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.font = '10px monospace';
+        ctx.fillText(ndviVal.toFixed(2), c * cellW + 4, r * cellH + cellH / 2 + 4);
       }
     }
   };
 
   useEffect(() => {
     if (activeTab === 'field-intelligence' && selectedFarm) {
-      setTimeout(() => renderNDVICanvas('ndvi-satellite-canvas'), 100);
+      const timer = setTimeout(() => renderNDVICanvas('ndvi-satellite-canvas', ndviData?.ndvi_matrix), 100);
+      return () => clearTimeout(timer);
     }
-  }, [activeTab, selectedFarm]);
+  }, [activeTab, selectedFarm, ndviData]);
 
   // Dynamic Crop Calendar Milestone Generator
   const generateMilestones = (cycle) => {
@@ -747,43 +824,76 @@ const FarmerDashboard = () => {
           )}
         </div>
 
+        {/* Tab buttons with disabled state when no farm selected */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
           <button 
             className={`btn btn-secondary ${activeTab === 'field-intelligence' ? 'btn-primary' : ''}`}
-            style={{ justifyContent: 'flex-start', width: '100%' }}
-            onClick={() => setActiveTab('field-intelligence')}
+            style={{ justifyContent: 'flex-start', width: '100%', opacity: selectedFarm ? 1 : 0.6 }}
+            onClick={() => selectedFarm && setActiveTab('field-intelligence')}
+            disabled={!selectedFarm}
           >
             <CloudSun size={18} /> Field Intelligence
           </button>
           
           <button 
             className={`btn btn-secondary ${activeTab === 'crop-operations' ? 'btn-primary' : ''}`}
-            style={{ justifyContent: 'flex-start', width: '100%' }}
-            onClick={() => setActiveTab('crop-operations')}
+            style={{ justifyContent: 'flex-start', width: '100%', opacity: selectedFarm ? 1 : 0.6 }}
+            onClick={() => selectedFarm && setActiveTab('crop-operations')}
+            disabled={!selectedFarm}
           >
             <Sprout size={18} /> Crop Operations
           </button>
 
           <button 
             className={`btn btn-secondary ${activeTab === 'ai-advisor' ? 'btn-primary' : ''}`}
-            style={{ justifyContent: 'flex-start', width: '100%' }}
-            onClick={() => setActiveTab('ai-advisor')}
+            style={{ justifyContent: 'flex-start', width: '100%', opacity: selectedFarm ? 1 : 0.6 }}
+            onClick={() => selectedFarm && setActiveTab('ai-advisor')}
+            disabled={!selectedFarm}
           >
             <BrainCircuit size={18} /> GenAI advisor
           </button>
 
           <button 
             className={`btn btn-secondary ${activeTab === 'crop-diagnostics' ? 'btn-primary' : ''}`}
-            style={{ justifyContent: 'flex-start', width: '100%' }}
-            onClick={() => setActiveTab('crop-diagnostics')}
+            style={{ justifyContent: 'flex-start', width: '100%', opacity: selectedFarm ? 1 : 0.6 }}
+            onClick={() => selectedFarm && setActiveTab('crop-diagnostics')}
+            disabled={!selectedFarm}
           >
             <ShieldAlert size={18} /> Disease Diagnostics
           </button>
 
           <button 
+            className={`btn btn-secondary ${activeTab === 'farm-resources' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%', opacity: selectedFarm ? 1 : 0.6 }}
+            onClick={() => selectedFarm && setActiveTab('farm-resources')}
+            disabled={!selectedFarm}
+          >
+            <Package size={18} /> Farm Resources
+          </button>
+
+          <button 
+            className={`btn btn-secondary ${activeTab === 'task-board' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%', opacity: selectedFarm ? 1 : 0.6 }}
+            onClick={() => selectedFarm && setActiveTab('task-board')}
+            disabled={!selectedFarm}
+          >
+            <ClipboardList size={18} /> Task Board
+          </button>
+
+          <button 
+            className={`btn btn-secondary ${activeTab === 'knowledge-base' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%', opacity: selectedFarm ? 1 : 0.6 }}
+            onClick={() => selectedFarm && setActiveTab('knowledge-base')}
+            disabled={!selectedFarm}
+          >
+            <BookOpen size={18} /> Knowledge Base
+          </button>
+
+          <button 
             className={`btn btn-secondary ${activeTab === 'financial-profile' ? 'btn-primary' : ''}`}
-            style={{ justifyContent: 'flex-start', width: '100%' }}
-            onClick={() => setActiveTab('financial-profile')}
+            style={{ justifyContent: 'flex-start', width: '100%', opacity: selectedFarm ? 1 : 0.6 }}
+            onClick={() => selectedFarm && setActiveTab('financial-profile')}
+            disabled={!selectedFarm}
           >
             <FileText size={18} /> Credit Portfolio
           </button>
@@ -863,8 +973,10 @@ const FarmerDashboard = () => {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
-                  <button className="btn btn-primary" type="submit">Log Plot Outlines</button>
-                  <button className="btn btn-secondary" type="button" onClick={() => setShowAddFarm(false)}>Cancel</button>
+                  <button className="btn btn-primary" type="submit" disabled={drawCoords.length < 3}>
+                    Log Plot Outlines ({drawCoords.length}/3+)
+                  </button>
+                  <button className="btn btn-secondary" type="button" onClick={() => { setShowAddFarm(false); clearCanvas(); }}>Cancel</button>
                 </div>
               </form>
 
@@ -875,7 +987,8 @@ const FarmerDashboard = () => {
                     ref={canvasRef} 
                     width={300} 
                     height={240} 
-                    onClick={handleCanvasClick}
+                    onMouseDown={handleCanvasMouseDown}
+                    tabIndex={0}
                     style={{ background: '#0b0f19', borderRadius: 8 }}
                   />
                   <div style={{ position: 'absolute', bottom: 10, right: 10, display: 'flex', gap: 6 }}>
@@ -913,6 +1026,10 @@ const FarmerDashboard = () => {
                 userAlerts={userAlerts}
                 createPriceAlert={createPriceAlert}
                 fetchUserAlerts={fetchUserAlerts}
+                weatherData={weatherData}
+                weatherLoading={weatherLoading}
+                ndviData={ndviData}
+                ndviLoading={ndviLoading}
               />
             )}
 
@@ -985,6 +1102,21 @@ const FarmerDashboard = () => {
               />
             )}
 
+            {/* Tab 6: Farm Resources */}
+            {activeTab === 'farm-resources' && (
+              <FarmerResourcesPanel selectedFarm={selectedFarm} />
+            )}
+
+            {/* Tab 7: Task Board */}
+            {activeTab === 'task-board' && (
+              <FarmerTaskPanel selectedFarm={selectedFarm} />
+            )}
+
+            {/* Tab 8: Knowledge Base */}
+            {activeTab === 'knowledge-base' && (
+              <KnowledgeBasePanel />
+            )}
+
             {/* Tab 5: Credit Portfolio & PMFBY Compliance */}
             {activeTab === 'financial-profile' && (
               <FarmerFinancialPanel
@@ -998,8 +1130,12 @@ const FarmerDashboard = () => {
           <div className="glass-panel flex-center" style={{ flexDirection: 'column', gap: 20, minHeight: 300, border: '1px dashed var(--border-glass)' }}>
             <MapPin size={48} className="text-muted" />
             <div style={{ textAlign: 'center' }}>
-              <h3>No Registered Farm Profiles Found</h3>
-              <p className="text-secondary mt-4">Please click the "Add Land" button to map your coordinate boundaries and launch crop intelligence operations.</p>
+              <h3>No Farm Selected</h3>
+              <p className="text-secondary mt-4">
+                {farms.length === 0 
+                  ? 'You have not registered any farm profiles yet. Click "Add Land" to map your first farm boundary and unlock all modules.'
+                  : 'Please select a farm from the dropdown above to access Field Intelligence, Crop Operations, AI Advisor, Disease Diagnostics, and Credit Portfolio modules.'}
+              </p>
             </div>
           </div>
         )}

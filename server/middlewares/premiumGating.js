@@ -2,7 +2,6 @@ const User = require('../models/User');
 
 const premiumGating = async (req, res, next) => {
   try {
-    // User object parsed out from preceding JWT verification middleware
     const userId = req.user.id;
     const user = await User.findById(userId);
 
@@ -10,7 +9,6 @@ const premiumGating = async (req, res, next) => {
       return res.status(401).json({ error: 'Authentication record missing.' });
     }
 
-    // Evaluate subscription properties
     if (user.subscription_tier === 'FREE') {
       return res.status(403).json({
         error: 'Premium Engine Module Locked.',
@@ -18,7 +16,6 @@ const premiumGating = async (req, res, next) => {
       });
     }
 
-    // Enforce dynamic volumetric rate-limiting to prevent server abuse
     if (user.api_usage_counter > 5000) {
       return res.status(429).json({
         error: 'Compute Limit Exceeded.',
@@ -26,7 +23,6 @@ const premiumGating = async (req, res, next) => {
       });
     }
 
-    // Auto-increment transactional count metrics within the request scope
     user.api_usage_counter += 1;
     await user.save();
 

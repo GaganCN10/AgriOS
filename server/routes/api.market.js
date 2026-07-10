@@ -1,23 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const marketController = require('../controllers/marketController');
-const authentication = require('../middlewares/authentication');
-const authorization = require('../middlewares/authorization');
+const logisticsController = require('../controllers/logisticsController');
+const authMiddleware = require('../middlewares/authentication');
+const authzMiddleware = require('../middlewares/authorization');
 
-// JWT verification intercepts all routes in this router
-router.use(authentication);
+router.use(authMiddleware);
 
-// AGMARKNET Wholesale Prices
-router.get('/prices', marketController.getPrices);
+router.get('/prices', authzMiddleware(['FARMER', 'FPO_ADMIN', 'AGRI_BUSINESS', 'EXPERT']), marketController.getMarketPrices);
+router.get('/alert/all', authzMiddleware(['FARMER', 'FPO_ADMIN', 'AGRI_BUSINESS', 'EXPERT']), marketController.getUserAlerts);
+router.post('/alert/create', authzMiddleware(['FARMER', 'FPO_ADMIN']), marketController.createPriceAlert);
 
-// FPO Yield Consolidation & B2B Procurement
-router.post('/lot/create', authorization(['FPO_ADMIN']), marketController.createConsolidatedLot);
-router.get('/lot/all', marketController.getConsolidatedLots);
-router.post('/lot/bid', authorization(['AGRI_BUSINESS']), marketController.placeBid);
-router.post('/lot/respond', authorization(['FPO_ADMIN']), marketController.respondToBid);
-
-// Price Alerts
-router.post('/alert/create', marketController.createPriceAlert);
-router.get('/alert/all', marketController.getAlerts);
+// Consolidated lot marketplace (frontend-facing aliases)
+router.get('/lot/all', authzMiddleware(['FPO_ADMIN', 'AGRI_BUSINESS']), logisticsController.getConsolidatedLots);
+router.post('/lot/create', authzMiddleware(['FPO_ADMIN']), logisticsController.createConsolidatedLot);
+router.post('/lot/bid', authzMiddleware(['AGRI_BUSINESS']), logisticsController.makePurchaseOffer);
+router.post('/lot/respond', authzMiddleware(['FPO_ADMIN']), logisticsController.respondToBid);
 
 module.exports = router;

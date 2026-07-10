@@ -16,7 +16,7 @@ const UserSchema = new mongoose.Schema({
     enum: ['FREE', 'PREMIUM_GROWER', 'ENTERPRISE_FPO'], 
     default: 'FREE' 
   },
-  fpo_affiliation: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // User can reference FPO Admin user or custom FPO model
+  fpo_affiliation: { type: mongoose.Schema.Types.ObjectId, ref: 'FPO', default: null },
   api_usage_counter: { type: Number, default: 0 },
   created_at: { type: Date, default: Date.now }
 }, { timestamps: true });

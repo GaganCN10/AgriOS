@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import FPOForecastPanel from './fpo/FPOForecastPanel';
 import FPOTraceabilityPanel from './fpo/FPOTraceabilityPanel';
+import FPOMembersPanel from './fpo/FPOMembersPanel';
 
 const FPODashboard = () => {
   const { user, logout, getAuthHeaders } = useAuth();
@@ -297,6 +298,13 @@ const FPODashboard = () => {
           >
             <Truck size={18} /> Traceability
           </button>
+          <button 
+            className={`btn btn-secondary ${activeTab === 'members' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%' }}
+            onClick={() => setActiveTab('members')}
+          >
+            <Users size={18} /> Members
+          </button>
         </nav>
 
         <button className="btn btn-secondary text-danger" style={{ marginTop: 'auto', justifyContent: 'flex-start' }} onClick={logout}>
@@ -577,6 +585,10 @@ const FPODashboard = () => {
             setTraceForm={setTraceForm}
             createTraceRecord={createTraceRecord}
           />
+        )}
+
+        {activeTab === 'members' && (
+          <FPOMembersPanel />
         )}
       </main>
     </div>

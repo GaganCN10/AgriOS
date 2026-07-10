@@ -1,9 +1,9 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from ml_service.endpoints import vision, prediction, advisor
-from ml_service.core.config import settings
-from ml_service.core.model_registry import model_registry
+from endpoints import vision, prediction, advisor
+from core.config import settings
+from core.model_registry import model_registry
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -49,4 +49,4 @@ def health_check():
 if __name__ == "__main__":
     import uvicorn
     # Start FastAPI server on port 8000
-    uvicorn.run("ml_service.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

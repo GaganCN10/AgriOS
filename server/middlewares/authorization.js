@@ -1,18 +1,6 @@
-const authorization = (allowedRoles = []) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required.' });
+module.exports = (roles) => (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ msg: "Access denied. Insufficient role permissions." });
     }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({
-        error: 'Forbidden.',
-        message: 'Your user profile role does not have authorization to view this resource.'
-      });
-    }
-
     next();
   };
-};
-
-module.exports = authorization;
