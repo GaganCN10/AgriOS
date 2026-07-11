@@ -4,6 +4,7 @@ import { BookOpen, Search, Plus, RefreshCw, ShieldCheck, Eye } from 'lucide-reac
 
 const KnowledgeBasePanel = () => {
   const { getAuthHeaders } = useAuth();
+  const { notify, notifySuccess } = useNotification();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -29,7 +30,9 @@ const KnowledgeBasePanel = () => {
       const res = await fetch(`http://localhost:5000/api/knowledge/articles?${params.toString()}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (res.ok) setArticles(data);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      notify(err, 'Load Failed', 'Could not load knowledge base articles.', 'Retry in a moment.');
+    }
     finally { setLoading(false); }
   };
 
@@ -47,8 +50,11 @@ const KnowledgeBasePanel = () => {
         setShowAdd(false);
         setNewArticle({ title: '', crop_name: 'Rice', region: 'General', category: 'PEST', content: '', treatment_protocol: '', severity_level: 'MEDIUM' });
         fetchArticles();
+        notifySuccess('Article published successfully.', 'Your agronomic guidance is now available to the community.');
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      notify(err, 'Publish Failed', 'Could not publish the article.', 'Check your inputs and retry.');
+    }
   };
 
   const categoryBadge = (c) => {
@@ -83,7 +89,7 @@ const KnowledgeBasePanel = () => {
         </div>
 
         {showAdd && (
-          <form onSubmit={createArticle} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14, background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+          <form onSubmit={createArticle} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14, background: '#f8fafc', borderRadius: 8, border: '1px solid var(--border-glass)' }}>
             <div className="input-group" style={{ marginBottom: 0 }}>
               <span className="input-label">Title</span>
               <input className="input-field" value={newArticle.title} onChange={(e) => setNewArticle({ ...newArticle, title: e.target.value })} required />

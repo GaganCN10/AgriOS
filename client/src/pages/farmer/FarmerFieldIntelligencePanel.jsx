@@ -111,7 +111,7 @@ const FarmerFieldIntelligencePanel = ({
               ))}
             </div>
           ) : (
-            <p className="text-secondary">No regional wholesale rates cataloged.</p>
+            <p className="text-secondary">No regional wholesale rates available yet. The system refreshes prices automatically every hour.</p>
           )}
 
           {triggeredAlerts.length > 0 && (
@@ -122,7 +122,7 @@ const FarmerFieldIntelligencePanel = ({
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {triggeredAlerts.map((alert) => (
-                  <div key={alert.id} className="glass-card" style={{ padding: 10, background: 'rgba(0,0,0,0.15)' }}>
+                   <div key={alert.id} className="glass-card" style={{ padding: 10, background: '#f8fafc', border: '1px solid var(--border-glass)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                       <div>
                         <strong>{alert.crop_name} ({alert.variety})</strong>
@@ -149,7 +149,7 @@ const FarmerFieldIntelligencePanel = ({
         </div>
 
         {showAlertForm && (
-          <form onSubmit={createPriceAlert} style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16, padding: 16, background: 'rgba(0,0,0,0.2)', borderRadius: 10 }}>
+           <form onSubmit={createPriceAlert} style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16, padding: 16, background: '#f8fafc', borderRadius: 10, border: '1px solid var(--border-glass)' }}>
             <div className="input-group" style={{ marginBottom: 0, flex: 1, minWidth: 120 }}>
               <span className="input-label">Crop</span>
               <select className="input-field" style={{ padding: '8px 12px' }} value={alertCrop} onChange={(e) => setAlertCrop(e.target.value)}>

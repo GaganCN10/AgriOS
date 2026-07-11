@@ -2,13 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   UserCheck, ShieldAlert, Award, FileText, CheckCircle, 
-  HelpCircle, User, LogOut, RefreshCw, Check, X, ShieldCheck
+  HelpCircle, User, LogOut, RefreshCw, Check, X, ShieldCheck, CreditCard
 } from 'lucide-react';
+import ProfilePage from './ProfilePage';
+import SubscriptionPage from './SubscriptionPage';
 
 const ExpertDashboard = () => {
   const { user, logout, getAuthHeaders } = useAuth();
+  const { notify, notifySuccess } = useNotification();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('diagnosis');
   
   // Selection & Validation state
   const [selectedLog, setSelectedLog] = useState(null);
@@ -57,14 +61,17 @@ const ExpertDashboard = () => {
         })
       });
       if (res.ok) {
-        alert('Validation submitted successfully!');
+        notifySuccess('Validation recorded successfully.', 'Your expert review has been saved to the disease log.');
         setSelectedLog(null);
         setCorrectedDisease('');
         setExpertNotes('');
         fetchLogs();
+      } else {
+        const errorData = await res.json();
+        notify(errorData, 'Validation Failed', errorData.error || 'Could not submit your validation.', 'Review the form and retry.');
       }
     } catch (err) {
-      console.error(err);
+      notify(err, 'Network Error', 'Could not reach the server while submitting validation.', 'Retry in a moment.');
     } finally {
       setSubmitting(false);
     }
@@ -98,6 +105,20 @@ const ExpertDashboard = () => {
           <button className="btn btn-primary" style={{ justifyContent: 'flex-start', width: '100%' }}>
             <ShieldAlert size={18} /> Disease Diagnosis
           </button>
+          <button 
+            className={`btn btn-secondary ${activeTab === 'profile' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%' }}
+            onClick={() => setActiveTab('profile')}
+          >
+            <User size={18} /> Profile
+          </button>
+          <button 
+            className={`btn btn-secondary ${activeTab === 'subscription' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%' }}
+            onClick={() => setActiveTab('subscription')}
+          >
+            <CreditCard size={18} /> Subscription
+          </button>
         </nav>
 
         <button className="btn btn-secondary text-danger" style={{ marginTop: 'auto', justifyContent: 'flex-start' }} onClick={logout}>
@@ -107,6 +128,12 @@ const ExpertDashboard = () => {
 
       {/* Main Panel Content */}
       <main className="main-content">
+        {activeTab === 'profile' ? (
+          <ProfilePage />
+        ) : activeTab === 'subscription' ? (
+          <SubscriptionPage />
+        ) : (
+        <>
         <header className="mb-6">
           <h1>Agronomist Peer Verification Panel</h1>
           <p style={{ color: 'var(--text-secondary)' }}>Review crop diseases detected by GenAI models, log corrections, and issue treatment approvals.</p>
@@ -164,7 +191,7 @@ const ExpertDashboard = () => {
             
             {selectedLog ? (
               <form onSubmit={submitValidation} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
-                <div className="glass-card" style={{ background: 'rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="glass-card" style={{ background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 10, border: '1px solid var(--border-glass)' }}>
                   <p style={{ margin: 0 }}><strong>Model Prediction:</strong> {selectedLog.model_inference.detected_disease} ({Math.round(selectedLog.model_inference.confidence_score * 100)}% confidence)</p>
                   <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}><strong>Suggested Advice:</strong> {selectedLog.model_inference.remediation_protocol}</p>
                 </div>
@@ -196,12 +223,14 @@ const ExpertDashboard = () => {
                 </button>
               </form>
             ) : (
-              <div className="flex-center" style={{ height: '80%', background: 'rgba(0,0,0,0.1)', borderRadius: 12, border: '1px dashed var(--border-glass)', padding: 30, marginTop: 16 }}>
+              <div className="flex-center" style={{ height: '80%', background: '#f1f5f9', borderRadius: 12, border: '1px dashed var(--border-glass)', padding: 30, marginTop: 16 }}>
                 <p className="text-secondary" style={{ textAlign: 'center' }}>Select a farmer submission from the panel on the left to verify diagnostics details.</p>
               </div>
             )}
           </div>
         </div>
+        </>
+        )}
       </main>
     </div>
   );

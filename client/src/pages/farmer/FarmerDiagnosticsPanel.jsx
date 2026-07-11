@@ -77,7 +77,7 @@ const FarmerDiagnosticsPanel = ({
                 )}
               </div>
             ) : (
-              <div className="flex-center" style={{ height: '100%', background: 'rgba(0,0,0,0.1)', borderRadius: 12, border: '1px dashed var(--border-glass)', padding: 30 }}>
+              <div className="flex-center" style={{ height: '100%', background: '#f1f5f9', borderRadius: 12, border: '1px dashed var(--border-glass)', padding: 30 }}>
                 <p className="text-secondary">Please select and upload a picture to run the active inference pipeline.</p>
               </div>
             )}
@@ -90,7 +90,7 @@ const FarmerDiagnosticsPanel = ({
               {diagHistory.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 260, overflowY: 'auto' }}>
                   {diagHistory.slice(0, 5).map((item) => (
-                    <div key={item._id} className="glass-card" style={{ padding: 12, background: 'rgba(0,0,0,0.15)' }}>
+                     <div key={item._id} className="glass-card" style={{ padding: 12, background: '#f8fafc', border: '1px solid var(--border-glass)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                         <div>
                           <strong>{item.model_inference?.detected_disease || 'Unknown diagnosis'}</strong>

@@ -104,17 +104,39 @@ exports.loginUser = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { subscription_tier } = req.body;
+    const { name, email, current_password, new_password, subscription_tier } = req.body;
     const user = await User.findById(req.user.id);
     
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
 
+    if (name) user.name = name;
+    if (email && email !== user.email) {
+      const existing = await User.findOne({ email });
+      if (existing) {
+        return res.status(400).json({ error: "Email already in use." });
+      }
+      user.email = email;
+    }
+
+    if (new_password) {
+      if (!current_password) {
+        return res.status(400).json({ error: "Current password is required to set a new password." });
+      }
+      const isMatch = await bcrypt.compare(current_password, user.password_hash);
+      if (!isMatch) {
+        return res.status(400).json({ error: "Current password is incorrect." });
+      }
+      const salt = await bcrypt.genSalt(10);
+      user.password_hash = await bcrypt.hash(new_password, salt);
+    }
+
     if (subscription_tier) {
       user.subscription_tier = subscription_tier;
-      await user.save();
     }
+
+    await user.save();
 
     const payload = {
       user: {

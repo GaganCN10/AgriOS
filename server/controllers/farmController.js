@@ -2,7 +2,6 @@ const Farm = require("../models/Farm");
 const User = require("../models/User");
 const PMFBYPolicy = require("../models/PMFBYPolicy");
 const { KisanCreditCardCalculator } = require("./financialController");
-
 exports.createFarm = async (req, res) => {
   const { farm_name, state, district, sub_district, survey_number, boundary_polygon, soil_profile } = req.body;
 

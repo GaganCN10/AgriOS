@@ -1,30 +1,33 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import { Sprout, Lock, Mail, User, ShieldCheck } from 'lucide-react';
 
 const Login = () => {
   const { login, register } = useAuth();
+  const { notify, notifySuccess, clearNotification } = useNotification();
   const [isRegistering, setIsRegistering] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('FARMER');
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    clearNotification();
     setLoading(true);
 
     try {
       if (isRegistering) {
         await register(name, email, password, role);
+        notifySuccess('Account created successfully! Welcome to AgriOS.', 'You can now explore all features.');
       } else {
         await login(email, password);
+        notifySuccess('Welcome back!', 'You are now securely logged in.');
       }
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please verify entries.');
+      notify(err);
     } finally {
       setLoading(false);
     }
@@ -39,11 +42,9 @@ const Login = () => {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Unified Agriculture Operating System</p>
         </div>
 
-        {error && (
-          <div className="glass-panel" style={{ padding: 12, marginBottom: 20, background: 'rgba(239, 68, 68, 0.08)', borderColor: 'var(--color-danger)', color: 'var(--color-danger)', fontSize: '0.9rem' }}>
-            {error}
-          </div>
-        )}
+        {/*
+          Notifications are rendered globally by NotificationProvider
+        */}
 
         <form onSubmit={handleSubmit}>
           {isRegistering && (

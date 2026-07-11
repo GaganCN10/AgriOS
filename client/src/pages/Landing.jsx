@@ -19,7 +19,7 @@ const Landing = () => {
         alignItems: 'center', 
         padding: '20px 40px',
         borderBottom: '1px solid var(--border-glass)',
-        background: 'rgba(9, 13, 22, 0.4)',
+        background: 'rgba(255, 255, 255, 0.85)',
         backdropFilter: 'blur(8px)',
         position: 'sticky',
         top: 0,
@@ -59,9 +59,7 @@ const Landing = () => {
           maxWidth: 900, 
           lineHeight: 1.15,
           marginBottom: 16,
-          background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #94a3b8 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent'
+          color: 'var(--color-primary)'
         }}>
           The Enterprise Operating System for Modern Agriculture
         </h1>
@@ -174,7 +172,7 @@ const Landing = () => {
         marginTop: 'auto', 
         padding: '30px 40px', 
         borderTop: '1px solid var(--border-glass)', 
-        background: 'rgba(0, 0, 0, 0.3)',
+        background: '#f1f5f9',
         textAlign: 'center',
         fontSize: '0.85rem',
         color: 'var(--text-muted)'

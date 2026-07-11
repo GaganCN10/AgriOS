@@ -145,7 +145,7 @@ const FPOTraceabilityPanel = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 680, overflowY: 'auto' }}>
             {traceRecords.length > 0 ? (
               traceRecords.map((record) => (
-                <div key={record._id} className="glass-card" style={{ padding: 14, background: 'rgba(0,0,0,0.15)' }}>
+                <div key={record._id} className="glass-card" style={{ padding: 14, background: '#f8fafc', border: '1px solid var(--border-glass)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
                     <div>
                       <h3 style={{ margin: 0 }}>{record.crop_name} - {record.variety}</h3>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { Package, Plus, RefreshCw, Wrench, AlertTriangle, Trash2 } from 'lucide-react';
 
 const FarmerResourcesPanel = ({ selectedFarm }) => {
   const { getAuthHeaders } = useAuth();
+  const { notify, notifySuccess } = useNotification();
   const [activeSection, setActiveSection] = useState('inventory');
   const [inventory, setInventory] = useState([]);
   const [equipment, setEquipment] = useState([]);
@@ -37,7 +38,7 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
       const eqData = await eqRes.json();
       if (eqRes.ok) setEquipment(eqData);
     } catch (err) {
-      console.error(err);
+      notify(err, 'Load Failed', 'Could not load farm resources.', 'Retry in a moment.');
     } finally {
       setLoading(false);
     }
@@ -49,7 +50,10 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
 
   const addInventory = async (e) => {
     e.preventDefault();
-    if (!invName || !invQty) return;
+    if (!invName || !invQty) {
+      notify({ message: 'Please enter both item name and quantity.', error: 'VALIDATION' });
+      return;
+    }
     try {
       const res = await fetch('http://localhost:5000/api/inventory/add', {
         method: 'POST',
@@ -69,13 +73,19 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
         setInvQty('');
         setInvThreshold('10');
         fetchData();
+        notifySuccess('Inventory item added.', 'Stock has been recorded in your farm register.');
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      notify(err, 'Add Failed', 'Could not add inventory item.', 'Retry in a moment.');
+    }
   };
 
   const addEquipment = async (e) => {
     e.preventDefault();
-    if (!equipName) return;
+    if (!equipName) {
+      notify({ message: 'Please enter equipment name.', error: 'VALIDATION' });
+      return;
+    }
     try {
       const res = await fetch('http://localhost:5000/api/equipment/add', {
         method: 'POST',
@@ -92,8 +102,11 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
         setEquipName('');
         setEquipCondition('OPERATIONAL');
         fetchData();
+        notifySuccess('Equipment registered.', 'Asset has been added to your farm inventory.');
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      notify(err, 'Add Failed', 'Could not register equipment.', 'Retry in a moment.');
+    }
   };
 
   const deleteInventory = async (itemId) => {
@@ -102,8 +115,13 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
-      if (res.ok) fetchData();
-    } catch (err) { console.error(err); }
+      if (res.ok) {
+        fetchData();
+        notifySuccess('Item removed.', 'Inventory item has been deleted.');
+      }
+    } catch (err) {
+      notify(err, 'Delete Failed', 'Could not delete inventory item.', 'Retry in a moment.');
+    }
   };
 
   const deleteEquipment = async (equipId) => {
@@ -112,8 +130,13 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
-      if (res.ok) fetchData();
-    } catch (err) { console.error(err); }
+      if (res.ok) {
+        fetchData();
+        notifySuccess('Equipment removed.', 'Asset has been deleted from your farm.');
+      }
+    } catch (err) {
+      notify(err, 'Delete Failed', 'Could not delete equipment.', 'Retry in a moment.');
+    }
   };
 
   const lowStockItems = inventory.filter(item => item.quantity_on_hand <= item.safety_threshold);
@@ -159,7 +182,7 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
           </div>
 
           {showAddInventory && (
-            <form onSubmit={addInventory} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12, background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+            <form onSubmit={addInventory} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid var(--border-glass)' }}>
               <div className="input-group" style={{ marginBottom: 0 }}>
                 <span className="input-label">Item Name</span>
                 <input className="input-field" value={invName} onChange={(e) => setInvName(e.target.value)} placeholder="e.g. Urea Fertilizer" required />
@@ -228,7 +251,7 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
           </div>
 
           {showAddEquipment && (
-            <form onSubmit={addEquipment} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12, background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+            <form onSubmit={addEquipment} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid var(--border-glass)' }}>
               <div className="input-group" style={{ marginBottom: 0 }}>
                 <span className="input-label">Equipment Name</span>
                 <input className="input-field" value={equipName} onChange={(e) => setEquipName(e.target.value)} placeholder="e.g. Tractor X200" required />

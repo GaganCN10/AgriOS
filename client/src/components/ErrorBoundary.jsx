@@ -27,7 +27,7 @@ class ErrorBoundary extends React.Component {
           <p style={{ color: 'var(--text-secondary)', textAlign: 'center', maxWidth: 600 }}>
             AgriOS encountered an unexpected runtime error. Please refresh the page or contact support.
           </p>
-          <details style={{ textAlign: 'left', maxWidth: 700, background: 'rgba(0,0,0,0.3)', padding: 16, borderRadius: 8 }}>
+           <details style={{ textAlign: 'left', maxWidth: 700, background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid var(--border-glass)' }}>
             <summary style={{ cursor: 'pointer', marginBottom: 8 }}>Error Details</summary>
             <pre style={{ overflow: 'auto', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               {this.state.error && this.state.error.toString()}

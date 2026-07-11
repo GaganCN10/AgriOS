@@ -3,14 +3,17 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Users, Sprout, TrendingUp, DollarSign, Plus, Check, X, 
   Layers, ChevronRight, User, LogOut, ArrowRight, Building,
-  BarChart3, RefreshCw, AlertTriangle, Zap, Calendar, Truck
+  BarChart3, RefreshCw, AlertTriangle, Zap, Calendar, Truck, CreditCard
 } from 'lucide-react';
 import FPOForecastPanel from './fpo/FPOForecastPanel';
 import FPOTraceabilityPanel from './fpo/FPOTraceabilityPanel';
 import FPOMembersPanel from './fpo/FPOMembersPanel';
+import ProfilePage from './ProfilePage';
+import SubscriptionPage from './SubscriptionPage';
 
 const FPODashboard = () => {
   const { user, logout, getAuthHeaders } = useAuth();
+  const { notify, notifySuccess } = useNotification();
   const [activeTab, setActiveTab] = useState('catalogue');
   const [lots, setLots] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +67,7 @@ const FPODashboard = () => {
         setLots(data);
       }
     } catch (err) {
-      console.error(err);
+      notify(err, 'Load Failed', 'Could not load market lots.', 'Retry in a moment.');
     } finally {
       setLoading(false);
     }
@@ -81,7 +84,7 @@ const FPODashboard = () => {
         setTraceRecords(data);
       }
     } catch (err) {
-      console.error(err);
+      notify(err, 'Load Failed', 'Could not load traceability records.', 'Retry in a moment.');
     } finally {
       setTraceLoading(false);
     }
@@ -95,7 +98,7 @@ const FPODashboard = () => {
   const createSaleLot = async (e) => {
     e.preventDefault();
     if (!totalQty || !expectedPrice) {
-      alert('Please fill out all sale parameters.');
+      notify({ message: 'Please enter both total quantity and expected price to create a sale lot.', error: 'VALIDATION' });
       return;
     }
 
@@ -118,17 +121,17 @@ const FPODashboard = () => {
         })
       });
       if (res.ok) {
-        alert('Bulk Sale Lot created and published to procurement portal!');
+        notifySuccess('Bulk sale lot published!', 'Your consolidated harvest lot is now visible to enterprise buyers.');
         setShowAddLot(false);
         setTotalQty('');
         setExpectedPrice('');
         fetchLots();
       } else {
         const errorData = await res.json();
-        alert(errorData.error || 'Failed to publish sale lot.');
+        notify(errorData, 'Publish Failed', errorData.error || 'Could not publish the sale lot.', 'Check your inputs and try again.');
       }
     } catch (err) {
-      console.error(err);
+      notify(err, 'Connection Error', 'Could not publish sale lot due to a network issue.', 'Retry in a moment.');
     }
   };
 
@@ -147,11 +150,14 @@ const FPODashboard = () => {
         })
       });
       if (res.ok) {
-        alert(`Bid successfully ${action === 'ACCEPT' ? 'accepted' : 'rejected'}!`);
+        notifySuccess(`Bid ${action === 'ACCEPT' ? 'accepted' : 'rejected'} successfully.`, 'The buyer has been notified of your decision.');
         fetchLots();
+      } else {
+        const errorData = await res.json();
+        notify(errorData, 'Action Failed', errorData.error || `Could not ${action.toLowerCase()} the bid.`, 'Retry or contact support.');
       }
     } catch (err) {
-      console.error(err);
+      notify(err, 'Connection Error', 'Could not reach the server while responding to the bid.', 'Retry in a moment.');
     }
   };
 
@@ -184,7 +190,7 @@ const FPODashboard = () => {
       });
 
       if (res.ok) {
-        alert('Traceability record saved.');
+        notifySuccess('Traceability record saved.', 'The logistics record has been added to your batch history.');
         setTraceForm((prev) => ({
           ...prev,
           destination: '',
@@ -200,10 +206,10 @@ const FPODashboard = () => {
         fetchTraceRecords();
       } else {
         const errorData = await res.json();
-        alert(errorData.error || 'Failed to save traceability record.');
+        notify(errorData, 'Save Failed', errorData.error || 'Could not save traceability record.', 'Check the form fields and retry.');
       }
     } catch (err) {
-      console.error(err);
+      notify(err, 'Connection Error', 'Could not reach the server while saving traceability record.', 'Retry in a moment.');
     }
   };
 
@@ -304,6 +310,20 @@ const FPODashboard = () => {
             onClick={() => setActiveTab('members')}
           >
             <Users size={18} /> Members
+          </button>
+          <button 
+            className={`btn btn-secondary ${activeTab === 'profile' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%' }}
+            onClick={() => setActiveTab('profile')}
+          >
+            <User size={18} /> Profile
+          </button>
+          <button 
+            className={`btn btn-secondary ${activeTab === 'subscription' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%' }}
+            onClick={() => setActiveTab('subscription')}
+          >
+            <CreditCard size={18} /> Subscription
           </button>
         </nav>
 
@@ -437,7 +457,7 @@ const FPODashboard = () => {
                         {lot.bids && lot.bids.length > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {lot.bids.map((bid) => (
-                              <div key={bid._id} className="glass-panel" style={{ padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.15)' }}>
+                               <div key={bid._id} className="glass-panel" style={{ padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', border: '1px solid var(--border-glass)' }}>
                                 <div>
                                   <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>Buyer ID: {bid.buyer_id.substring(18).toUpperCase()}</p>
                                   <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)' }}>INR {bid.bid_price_per_ton_inr.toLocaleString('en-IN')} / Ton</p>
@@ -589,6 +609,14 @@ const FPODashboard = () => {
 
         {activeTab === 'members' && (
           <FPOMembersPanel />
+        )}
+
+        {activeTab === 'profile' && (
+          <ProfilePage />
+        )}
+
+        {activeTab === 'subscription' && (
+          <SubscriptionPage />
         )}
       </main>
     </div>

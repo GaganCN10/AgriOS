@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
-  Building, TrendingUp, Search, Award, CheckCircle, HelpCircle, 
-  Layers, User, LogOut, ShieldCheck, Tag
+  Building, Layers, Truck, FileText, User, LogOut, RefreshCw, Check, X, ShieldCheck, Award, CreditCard
 } from 'lucide-react';
+import ProfilePage from './ProfilePage';
+import SubscriptionPage from './SubscriptionPage';
 
 const BusinessDashboard = () => {
   const { user, logout, getAuthHeaders } = useAuth();
+  const { notify, notifySuccess } = useNotification();
+  const [activeTab, setActiveTab] = useState('catalogue');
   const [lots, setLots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [bidInputs, setBidInputs] = useState({}); // { lotId: price }
@@ -34,8 +37,8 @@ const BusinessDashboard = () => {
 
   const handlePlaceBid = async (lotId) => {
     const price = bidInputs[lotId];
-    if (!price || isNaN(price)) {
-      alert('Please enter a valid bid price.');
+    if (!price || isNaN(price) || parseFloat(price) <= 0) {
+      notify({ message: 'Please enter a valid bid price greater than zero.', error: 'VALIDATION' });
       return;
     }
 
@@ -52,15 +55,15 @@ const BusinessDashboard = () => {
         })
       });
       if (res.ok) {
-        alert('Bid logged successfully!');
+        notifySuccess('Bid placed successfully!', 'Your offer has been submitted to the FPO. You will be notified if it is accepted.');
         setBidInputs(prev => ({ ...prev, [lotId]: '' }));
         fetchLots();
       } else {
         const errorData = await res.json();
-        alert(errorData.error || 'Failed to place purchase offer.');
+        notify(errorData, 'Bid Failed', errorData.error || 'Could not place your purchase offer.', 'Review the lot details and try again.');
       }
     } catch (err) {
-      console.error(err);
+      notify(err, 'Connection Error', 'Could not place bid due to a network issue.', 'Retry in a moment.');
     }
   };
 
@@ -92,6 +95,20 @@ const BusinessDashboard = () => {
           <button className="btn btn-primary" style={{ justifyContent: 'flex-start', width: '100%' }}>
             <Layers size={18} /> Procurement Catalogue
           </button>
+          <button 
+            className={`btn btn-secondary ${activeTab === 'profile' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%' }}
+            onClick={() => setActiveTab('profile')}
+          >
+            <User size={18} /> Profile
+          </button>
+          <button 
+            className={`btn btn-secondary ${activeTab === 'subscription' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%' }}
+            onClick={() => setActiveTab('subscription')}
+          >
+            <CreditCard size={18} /> Subscription
+          </button>
         </nav>
 
         <button className="btn btn-secondary text-danger" style={{ marginTop: 'auto', justifyContent: 'flex-start' }} onClick={logout}>
@@ -101,6 +118,12 @@ const BusinessDashboard = () => {
 
       {/* Main Panel Content */}
       <main className="main-content">
+        {activeTab === 'profile' ? (
+          <ProfilePage />
+        ) : activeTab === 'subscription' ? (
+          <SubscriptionPage />
+        ) : (
+        <>
         <header className="mb-6">
           <h1>Enterprise Procurement Hub</h1>
           <p style={{ color: 'var(--text-secondary)' }}>Browse consolidated agricultural lots, place bidding proposals, and verify trace records.</p>
@@ -129,7 +152,7 @@ const BusinessDashboard = () => {
                       <span className="badge badge-active" style={{ fontSize: '0.85rem' }}>{lot.total_quantity_metric_tons} Tons</span>
                     </div>
 
-                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 8, display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                     <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', border: '1px solid var(--border-glass)' }}>
                       <span className="text-secondary">Expected Price:</span>
                       <span style={{ fontWeight: 600 }}>INR {lot.expected_price_per_ton_inr.toLocaleString('en-IN')} / Ton</span>
                     </div>
@@ -185,6 +208,8 @@ const BusinessDashboard = () => {
             <p className="text-secondary mt-4">No bulk inventory sale catalog listings available.</p>
           )}
         </div>
+        </>
+        )}
       </main>
     </div>
   );

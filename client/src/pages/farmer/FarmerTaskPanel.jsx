@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { ClipboardList, Plus, RefreshCw, CheckCircle2, Circle, Trash2, AlertTriangle } from 'lucide-react';
 
 const FarmerTaskPanel = ({ selectedFarm }) => {
   const { getAuthHeaders } = useAuth();
+  const { notify, notifySuccess } = useNotification();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -24,7 +25,7 @@ const FarmerTaskPanel = ({ selectedFarm }) => {
       const data = await res.json();
       if (res.ok) setTasks(data);
     } catch (err) {
-      console.error(err);
+      notify(err, 'Load Failed', 'Could not load tasks.', 'Retry in a moment.');
     } finally {
       setLoading(false);
     }
@@ -36,7 +37,10 @@ const FarmerTaskPanel = ({ selectedFarm }) => {
 
   const createTask = async (e) => {
     e.preventDefault();
-    if (!newTitle) return;
+    if (!newTitle) {
+      notify({ message: 'Please enter a task title.', error: 'VALIDATION' });
+      return;
+    }
     try {
       const res = await fetch('http://localhost:5000/api/task/create', {
         method: 'POST',
@@ -55,8 +59,11 @@ const FarmerTaskPanel = ({ selectedFarm }) => {
         setNewDesc('');
         setNewPriority('MEDIUM');
         fetchTasks();
+        notifySuccess('Task created.', 'The task has been added to your board.');
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      notify(err, 'Create Failed', 'Could not create task.', 'Retry in a moment.');
+    }
   };
 
   const updateTaskStatus = async (taskId, newStatus) => {
@@ -66,8 +73,13 @@ const FarmerTaskPanel = ({ selectedFarm }) => {
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ status: newStatus })
       });
-      if (res.ok) fetchTasks();
-    } catch (err) { console.error(err); }
+      if (res.ok) {
+        fetchTasks();
+        notifySuccess('Task updated.', `Status changed to ${newStatus.replace('_', ' ')}.`);
+      }
+    } catch (err) {
+      notify(err, 'Update Failed', 'Could not update task status.', 'Retry in a moment.');
+    }
   };
 
   const deleteTask = async (taskId) => {
@@ -76,8 +88,13 @@ const FarmerTaskPanel = ({ selectedFarm }) => {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
-      if (res.ok) fetchTasks();
-    } catch (err) { console.error(err); }
+      if (res.ok) {
+        fetchTasks();
+        notifySuccess('Task deleted.', 'The task has been removed from your board.');
+      }
+    } catch (err) {
+      notify(err, 'Delete Failed', 'Could not delete task.', 'Retry in a moment.');
+    }
   };
 
   const filteredTasks = filterStatus === 'ALL' ? tasks : tasks.filter(t => t.status === filterStatus);
@@ -123,7 +140,7 @@ const FarmerTaskPanel = ({ selectedFarm }) => {
         </div>
 
         {showAddTask && (
-          <form onSubmit={createTask} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14, background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+           <form onSubmit={createTask} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14, background: '#f8fafc', borderRadius: 8, border: '1px solid var(--border-glass)' }}>
             <div className="input-group" style={{ marginBottom: 0 }}>
               <span className="input-label">Task Title</span>
               <input className="input-field" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Irrigate north field" required />

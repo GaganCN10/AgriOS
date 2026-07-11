@@ -71,7 +71,7 @@ const FPOForecastPanel = ({
             {forecastSeries.length > 0 && (
               <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
                 {forecastSeries.slice(0, 6).map((price, index) => (
-                  <DashboardCard key={index} style={{ padding: 12, background: 'rgba(0,0,0,0.15)' }}>
+                  <DashboardCard key={index} style={{ padding: 12, background: '#f8fafc', border: '1px solid var(--border-glass)' }}>
                     <span className="text-secondary" style={{ fontSize: '0.72rem' }}>DAY {index + 1}</span>
                     <div style={{ marginTop: 6, fontSize: '1rem', fontWeight: 700 }}>₹{Number(price).toLocaleString('en-IN')}</div>
                   </DashboardCard>

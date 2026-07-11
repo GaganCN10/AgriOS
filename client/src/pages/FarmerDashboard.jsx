@@ -5,7 +5,7 @@ import {
   ChevronRight, Calendar, User, LogOut, CheckCircle, HelpCircle, 
   MapPin, Plus, FileText, Download, Send, RefreshCw, AlertTriangle,
   Bell, Target, TrendingUp, Zap, Check, Package, Wrench, ClipboardList,
-  BookOpen
+  BookOpen, CreditCard
 } from 'lucide-react';
 import FarmerAdvisorPanel from './farmer/FarmerAdvisorPanel';
 import FarmerDiagnosticsPanel from './farmer/FarmerDiagnosticsPanel';
@@ -15,9 +15,12 @@ import FarmerCropOperationsPanel from './farmer/FarmerCropOperationsPanel';
 import FarmerResourcesPanel from './farmer/FarmerResourcesPanel';
 import FarmerTaskPanel from './farmer/FarmerTaskPanel';
 import KnowledgeBasePanel from './KnowledgeBasePanel';
+import ProfilePage from './ProfilePage';
+import SubscriptionPage from './SubscriptionPage';
 
 const FarmerDashboard = () => {
   const { user, logout, getAuthHeaders, upgradeSubscription } = useAuth();
+  const { notify, notifySuccess, clearNotification } = useNotification();
   const [activeTab, setActiveTab] = useState('field-intelligence');
   
   // Farm State
@@ -120,7 +123,7 @@ const FarmerDashboard = () => {
         }
       }
     } catch (err) {
-      console.error(err);
+      notify(err, 'Load Failed', 'Could not load your farms.', 'Retry in a moment.');
     } finally {
       setLoadingFarms(false);
     }
@@ -316,7 +319,7 @@ const FarmerDashboard = () => {
   const registerFarm = async (e) => {
     e.preventDefault();
     if (!newFarmName || !newSurvey || drawCoords.length < 3) {
-      alert('Please fill farm details and map at least 3 vertices.');
+      notify({ message: 'Farm name, survey number, and at least 3 boundary vertices are required.', error: 'VALIDATION' });
       return;
     }
 
@@ -361,17 +364,17 @@ const FarmerDashboard = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(`Farm successfully registered! Area Calculated: ${data.calculated_area_hectares} Ha`);
+        notifySuccess(`Farm registered successfully! Calculated area: ${data.calculated_area_hectares} hectares.`, 'You can now start logging crop cycles and expenses.');
         setShowAddFarm(false);
         setNewFarmName('');
         setNewSurvey('');
         setDrawCoords([]);
         fetchFarms();
       } else {
-        alert(data.error || 'Failed to log farm coordinates.');
+        notify(data, 'Farm Registration Failed', data.error || 'Could not save farm coordinates. Please try again.');
       }
     } catch (err) {
-      console.error(err);
+      notify(err, 'Connection Error', 'Could not reach the server while registering your farm.', 'Check your internet connection and retry.');
     }
   };
 
@@ -396,17 +399,20 @@ const FarmerDashboard = () => {
       if (res.ok) {
         setShowAddCycle(false);
         fetchCropCycles(selectedFarm._id);
+      } else {
+        const errorData = await res.json();
+        notify(errorData, 'Cycle Start Failed', errorData.error || 'Could not start crop cycle.', 'Verify your inputs and try again.');
       }
     } catch (err) {
-      console.error(err);
+      notify(err, 'Connection Error', 'Could not reach the server while starting crop cycle.', 'Retry in a moment.');
     }
   };
 
   // Log Expense
   const addExpense = async (e) => {
     e.preventDefault();
-    if (!expAmount || isNaN(expAmount)) {
-      alert('Please fill a valid amount.');
+    if (!expAmount || isNaN(expAmount) || parseFloat(expAmount) <= 0) {
+      notify({ message: 'Please enter a valid expense amount greater than zero.', error: 'VALIDATION' });
       return;
     }
     try {
@@ -429,9 +435,10 @@ const FarmerDashboard = () => {
         setShowAddExpense(false);
         fetchCropCycles(selectedFarm._id);
         fetchFinancialProfile(selectedFarm._id);
+        notifySuccess('Expense logged successfully.', 'The amount has been added to your crop cycle ledger.');
       }
     } catch (err) {
-      console.error(err);
+      notify(err, 'Network Error', 'Could not log expense due to a connection issue.', 'Retry in a moment.');
     }
   };
 
@@ -445,7 +452,7 @@ const FarmerDashboard = () => {
         return;
       }
       if (enteredYield.trim() === '' || Number.isNaN(Number(enteredYield))) {
-        alert('Please enter a valid harvest yield.');
+        notify({ message: 'Please enter a valid numeric value for harvest yield.', error: 'VALIDATION' });
         return;
       }
       actualYieldMetricTons = parseFloat(enteredYield);
@@ -468,11 +475,12 @@ const FarmerDashboard = () => {
       if (res.ok) {
         fetchCropCycles(selectedFarm._id);
         fetchFinancialProfile(selectedFarm._id);
+        notifySuccess('Crop stage updated successfully.', 'The cycle status has been recorded.');
       } else {
-        alert(data.error || 'Failed to update crop stage.');
+        notify(data, 'Update Failed', data.error || 'Could not update crop stage. Please retry.');
       }
     } catch (err) {
-      alert('Failed to update crop stage.');
+      notify(err, 'Connection Error', 'Could not reach the server while updating crop stage.', 'Retry in a moment.');
     }
   };
 
@@ -527,7 +535,7 @@ const FarmerDashboard = () => {
   const runDiagnostics = async (e) => {
     e.preventDefault();
     if (!diagFile || !selectedFarm) {
-      alert('Please upload an image and select a farm.');
+      notify({ message: 'Please select a farm and upload a leaf or crop image to run diagnostics.', error: 'VALIDATION' });
       return;
     }
 
@@ -588,12 +596,9 @@ const FarmerDashboard = () => {
   const triggerPDFDownload = () => {
     if (!selectedFarm) return;
     const url = `http://localhost:5000/api/farm/pdf/${selectedFarm._id}`;
-    // Trigger download in new tab
     const a = document.createElement('a');
     a.href = url;
-    a.setAttribute('download', `AgriOS_Financial_Pack_${selectedFarm.farm_name}.pdf`);
-    // Pass JWT via query param or simple download?
-    // Since browser <a> clicks can't set headers, we can fetch the blob instead!
+    a.setAttribute('download', `AgriOS_Financial_Pack_${selectedFarm.farm_name.replace(/\s+/g, '_')}.pdf`);
     fetch(url, {
       headers: getAuthHeaders()
     })
@@ -609,7 +614,7 @@ const FarmerDashboard = () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(blobUrl);
     })
-    .catch(err => alert('Failed to download PDF package: ' + err.message));
+    .catch(err => notify(err, 'Download Failed', 'Could not download the PDF document package.', 'Ensure your farm profile data is complete and try again.'));
   };
 
   // NDVI Canvas simulation helper
@@ -747,8 +752,14 @@ const FarmerDashboard = () => {
         setShowAlertForm(false);
         setAlertPrice('');
         fetchUserAlerts();
+        notifySuccess('Price alert created.', 'You will be notified when the target price is reached.');
+      } else {
+        const errorData = await res.json();
+        notify(errorData, 'Alert Creation Failed', errorData.error || 'Could not create price alert.', 'Review your inputs and try again.');
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      notify(err, 'Connection Error', 'Could not reach the server while creating price alert.', 'Retry in a moment.');
+    }
   };
 
   useEffect(() => {
@@ -772,7 +783,7 @@ const FarmerDashboard = () => {
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {triggeredAlerts.map((alert) => (
-                          <div key={alert.id} className="glass-card" style={{ padding: 10, background: 'rgba(0,0,0,0.15)' }}>
+                           <div key={alert.id} className="glass-card" style={{ padding: 10, background: '#f8fafc', border: '1px solid var(--border-glass)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                               <div>
                                 <strong>{alert.crop_name} ({alert.variety})</strong>
@@ -810,14 +821,14 @@ const FarmerDashboard = () => {
             <button 
               className="btn btn-primary" 
               style={{ width: '100%', fontSize: '0.75rem', padding: '6px 12px', marginTop: 12 }}
-              onClick={async () => {
-                try {
-                  await upgradeSubscription('PREMIUM_GROWER');
-                  alert('Upgraded to Premium Tier! High-compute ML pipelines active.');
-                } catch (err) {
-                  alert(err.message);
-                }
-              }}
+               onClick={async () => {
+                 try {
+                   await upgradeSubscription('PREMIUM_GROWER');
+                   notifySuccess('Upgraded to Premium Tier! High-compute ML pipelines are now active.', 'You can now use AI diagnostics, yield prediction, and advisor chat.');
+                 } catch (err) {
+                   notify(err, 'Upgrade Failed', err.message || 'Could not upgrade subscription.', 'Please try again or contact support.');
+                 }
+               }}
             >
               Upgrade to Premium
             </button>
@@ -896,6 +907,22 @@ const FarmerDashboard = () => {
             disabled={!selectedFarm}
           >
             <FileText size={18} /> Credit Portfolio
+          </button>
+
+          <button 
+            className={`btn btn-secondary ${activeTab === 'profile' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%' }}
+            onClick={() => setActiveTab('profile')}
+          >
+            <User size={18} /> Profile
+          </button>
+
+          <button 
+            className={`btn btn-secondary ${activeTab === 'subscription' ? 'btn-primary' : ''}`}
+            style={{ justifyContent: 'flex-start', width: '100%' }}
+            onClick={() => setActiveTab('subscription')}
+          >
+            <CreditCard size={18} /> Subscription
           </button>
         </nav>
 
@@ -989,7 +1016,7 @@ const FarmerDashboard = () => {
                     height={240} 
                     onMouseDown={handleCanvasMouseDown}
                     tabIndex={0}
-                    style={{ background: '#0b0f19', borderRadius: 8 }}
+                    style={{ background: '#f1f5f9', borderRadius: 8, border: '1px solid var(--border-glass)' }}
                   />
                   <div style={{ position: 'absolute', bottom: 10, right: 10, display: 'flex', gap: 6 }}>
                     <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem' }} onClick={clearCanvas}>Clear Outline</button>
@@ -1124,6 +1151,16 @@ const FarmerDashboard = () => {
                 finProfile={finProfile}
                 triggerPDFDownload={triggerPDFDownload}
               />
+            )}
+
+            {/* Tab: Profile */}
+            {activeTab === 'profile' && (
+              <ProfilePage />
+            )}
+
+            {/* Tab: Subscription */}
+            {activeTab === 'subscription' && (
+              <SubscriptionPage />
             )}
           </div>
         ) : (

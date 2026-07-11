@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { Users, Plus, Check, X, RefreshCw, Mail, ShieldCheck } from 'lucide-react';
 
 const FPOMembersPanel = () => {
   const { getAuthHeaders } = useAuth();
+  const { notify, notifySuccess } = useNotification();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -16,7 +17,9 @@ const FPOMembersPanel = () => {
       const res = await fetch('http://localhost:5000/api/fpo/members', { headers: getAuthHeaders() });
       const data = await res.json();
       if (res.ok) setMembers(data);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      notify(err, 'Load Failed', 'Could not load FPO members.', 'Retry in a moment.');
+    }
     finally { setLoading(false); }
   };
 
@@ -36,8 +39,11 @@ const FPOMembersPanel = () => {
         setShowAdd(false);
         setMemberEmail('');
         fetchMembers();
+        notifySuccess('Member added.', 'The farmer has been invited to your FPO network.');
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      notify(err, 'Add Failed', 'Could not add member.', 'Check the email and try again.');
+    }
     finally { setSubmitting(false); }
   };
 
@@ -48,16 +54,26 @@ const FPOMembersPanel = () => {
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ validation_status: status }),
       });
-      if (res.ok) fetchMembers();
-    } catch (err) { console.error(err); }
+      if (res.ok) {
+        fetchMembers();
+        notifySuccess(`Member ${status === 'PASSED' ? 'approved' : 'rejected'}.`, 'The validation status has been updated.');
+      }
+    } catch (err) {
+      notify(err, 'Validation Failed', 'Could not update member validation status.', 'Retry in a moment.');
+    }
   };
 
   const removeMember = async (memberId) => {
     if (!confirm('Remove this member?')) return;
     try {
       const res = await fetch(`http://localhost:5000/api/fpo/members/remove/${memberId}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (res.ok) fetchMembers();
-    } catch (err) { console.error(err); }
+      if (res.ok) {
+        fetchMembers();
+        notifySuccess('Member removed.', 'The member has been removed from your FPO network.');
+      }
+    } catch (err) {
+      notify(err, 'Remove Failed', 'Could not remove member.', 'Retry in a moment.');
+    }
   };
 
   const statusBadge = (s) => s === 'PASSED' ? 'badge-active' : s === 'FAILED' ? 'badge-abandoned' : 'badge-premium';
@@ -76,7 +92,7 @@ const FPOMembersPanel = () => {
         </div>
 
         {showAdd && (
-          <form onSubmit={addMember} style={{ display: 'flex', gap: 12, alignItems: 'flex-end', padding: 12, background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+          <form onSubmit={addMember} style={{ display: 'flex', gap: 12, alignItems: 'flex-end', padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid var(--border-glass)' }}>
             <div className="input-group" style={{ marginBottom: 0, flex: 1 }}>
               <span className="input-label">Member Email</span>
               <input className="input-field" type="email" value={memberEmail} onChange={(e) => setMemberEmail(e.target.value)} placeholder="farmer@example.com" required />
