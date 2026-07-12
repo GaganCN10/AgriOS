@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Sprout, CloudSun, DollarSign, BrainCircuit, ShieldAlert, 
-  ChevronRight, Calendar, User, LogOut, CheckCircle, HelpCircle, 
+import { useNotification } from '../context/NotificationContext';
+import {
+  Sprout, CloudSun, DollarSign, BrainCircuit, ShieldAlert,
+  ChevronRight, Calendar, User, LogOut, CheckCircle, HelpCircle,
   MapPin, Plus, FileText, Download, Send, RefreshCw, AlertTriangle,
   Bell, Target, TrendingUp, Zap, Check, Package, Wrench, ClipboardList,
-  BookOpen, CreditCard
+  BookOpen, CreditCard, Menu
 } from 'lucide-react';
 import FarmerAdvisorPanel from './farmer/FarmerAdvisorPanel';
 import FarmerDiagnosticsPanel from './farmer/FarmerDiagnosticsPanel';
@@ -730,6 +731,7 @@ const FarmerDashboard = () => {
   const [alertPrice, setAlertPrice] = useState('');
   const [alertDirection, setAlertDirection] = useState('ABOVE');
   const [userAlerts, setUserAlerts] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const fetchUserAlerts = async () => {
     try {
@@ -767,7 +769,7 @@ const FarmerDashboard = () => {
   }, [activeTab]);
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${sidebarOpen ? 'sidebar-open' : ''}`}>
       {/* Sidebar Nav */}
       <aside className="sidebar">
         <div className="flex-center" style={{ gap: 8, marginBottom: 32, justifyContent: 'flex-start' }}>
@@ -807,33 +809,29 @@ const FarmerDashboard = () => {
             <div className="flex-center" style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--color-primary-glow)' }}>
               <User size={18} className="text-primary" />
             </div>
-            <div style={{ overflow: 'hidden' }}>
-              <p style={{ fontSize: '0.85rem', fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden' }}>{user.name}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span className={`badge ${user.subscription_tier !== 'FREE' ? 'badge-premium' : 'badge-free'}`} style={{ fontSize: '0.6rem', padding: '1px 6px' }}>
-                  {user.subscription_tier}
-                </span>
-              </div>
+            <div>
+              <p style={{ fontSize: '0.8rem', fontWeight: 600 }}>{user.name}</p>
+              <span className="badge badge-premium" style={{ fontSize: '0.6rem', padding: '1px 6px' }}>Farmer</span>
             </div>
           </div>
-          
-          {user.subscription_tier === 'FREE' && (
-            <button 
-              className="btn btn-primary" 
-              style={{ width: '100%', fontSize: '0.75rem', padding: '6px 12px', marginTop: 12 }}
-               onClick={async () => {
-                 try {
-                   await upgradeSubscription('PREMIUM_GROWER');
-                   notifySuccess('Upgraded to Premium Tier! High-compute ML pipelines are now active.', 'You can now use AI diagnostics, yield prediction, and advisor chat.');
-                 } catch (err) {
-                   notify(err, 'Upgrade Failed', err.message || 'Could not upgrade subscription.', 'Please try again or contact support.');
-                 }
-               }}
-            >
-              Upgrade to Premium
-            </button>
-          )}
         </div>
+
+        {user.subscription_tier === 'FREE' && (
+          <button
+            className="btn btn-primary"
+            style={{ width: '100%', fontSize: '0.75rem', padding: '6px 12px', marginTop: 12 }}
+             onClick={async () => {
+               try {
+                 await upgradeSubscription('PREMIUM_GROWER');
+                 notifySuccess('Upgraded to Premium Tier! High-compute ML pipelines are now active.', 'You can now use AI diagnostics, yield prediction, and advisor chat.');
+               } catch (err) {
+                 notify(err, 'Upgrade Failed', err.message || 'Could not upgrade subscription.', 'Please try again or contact support.');
+               }
+             }}
+          >
+            Upgrade to Premium
+          </button>
+        )}
 
         {/* Tab buttons with disabled state when no farm selected */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
@@ -931,12 +929,20 @@ const FarmerDashboard = () => {
         </button>
       </aside>
 
+      {/* Sidebar backdrop for mobile */}
+      <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
+
       {/* Main Panel Content */}
       <main className="main-content">
         <header className="mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1>Farmer Console</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>Observe multi-spectral plots, schedule tasks, and evaluate credit eligibility.</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              <Menu size={24} />
+            </button>
+            <div>
+              <h1>Farmer Console</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Observe multi-spectral plots, schedule tasks, and evaluate credit eligibility.</p>
+            </div>
           </div>
           
           {/* Farm selector dropdown */}

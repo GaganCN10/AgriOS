@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed.');
+      if (!res.ok) throw new Error(data.error || data.msg || 'Login failed.');
       
       setToken(data.token);
       setUser(data.user);
@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ name, email, password, role })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Registration failed.');
+      if (!res.ok) throw new Error(data.error || data.msg || 'Registration failed.');
 
       setToken(data.token);
       setUser(data.user);
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ subscription_tier: tier })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update subscription.');
+      if (!res.ok) throw new Error(data.error || data.msg || 'Failed to update subscription.');
       
       setToken(data.token);
       setUser(data.user);

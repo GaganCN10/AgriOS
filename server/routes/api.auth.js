@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authentication');
-const { handleValidationErrors, sanitizeName, sanitizeEmail, sanitizePassword, sanitizeRole } = require('../middlewares/sanitize');
+const { handleValidationErrors, sanitizeName, sanitizeEmail, sanitizeLoginEmail, sanitizePassword, sanitizeRole } = require('../middlewares/sanitize');
 
 router.post('/register', [
   sanitizeName(),
@@ -12,7 +12,7 @@ router.post('/register', [
   handleValidationErrors,
 ], authController.registerUser);
 router.post('/login', [
-  sanitizeEmail(),
+  sanitizeLoginEmail(),
   sanitizePassword(),
   handleValidationErrors,
 ], authController.loginUser);

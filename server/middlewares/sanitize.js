@@ -28,6 +28,10 @@ const sanitizeEmail = () => body("email")
   .isLength({ max: 255 })
   .withMessage("Invalid email format.");
 
+const sanitizeLoginEmail = () => body("email")
+  .isLength({ min: 3, max: 255 })
+  .withMessage("Invalid email format.");
+
 const sanitizeName = () => body("name")
   .isString()
   .trim()
@@ -64,6 +68,7 @@ module.exports = {
   handleValidationErrors,
   sanitizeString,
   sanitizeEmail,
+  sanitizeLoginEmail,
   sanitizeName,
   sanitizePassword,
   sanitizeRole,

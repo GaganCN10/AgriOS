@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Building, Layers, Truck, FileText, User, LogOut, RefreshCw, Check, X, ShieldCheck, Award, CreditCard
+import { useNotification } from '../context/NotificationContext';
+import {
+  Building, Layers, Truck, FileText, User, LogOut, RefreshCw, Check, X, ShieldCheck, Award, CreditCard, Menu
 } from 'lucide-react';
 import ProfilePage from './ProfilePage';
 import SubscriptionPage from './SubscriptionPage';
@@ -12,7 +13,8 @@ const BusinessDashboard = () => {
   const [activeTab, setActiveTab] = useState('catalogue');
   const [lots, setLots] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [bidInputs, setBidInputs] = useState({}); // { lotId: price }
+  const [bidInputs, setBidInputs] = useState({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const fetchLots = async () => {
     try {
@@ -68,7 +70,7 @@ const BusinessDashboard = () => {
   };
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${sidebarOpen ? 'sidebar-open' : ''}`}>
       {/* Sidebar Nav */}
       <aside className="sidebar">
         <div className="flex-center" style={{ gap: 8, marginBottom: 32, justifyContent: 'flex-start' }}>
@@ -85,7 +87,7 @@ const BusinessDashboard = () => {
               <Building size={18} className="text-primary" />
             </div>
             <div>
-              <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user.name}</p>
+              <p style={{ fontSize: '0.8rem', fontWeight: 600 }}>{user.name}</p>
               <span className="badge badge-premium" style={{ fontSize: '0.6rem', padding: '1px 6px' }}>Enterprise Agent</span>
             </div>
           </div>
@@ -116,6 +118,9 @@ const BusinessDashboard = () => {
         </button>
       </aside>
 
+      {/* Sidebar backdrop for mobile */}
+      <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
+
       {/* Main Panel Content */}
       <main className="main-content">
         {activeTab === 'profile' ? (
@@ -124,9 +129,16 @@ const BusinessDashboard = () => {
           <SubscriptionPage />
         ) : (
         <>
-        <header className="mb-6">
-          <h1>Enterprise Procurement Hub</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Browse consolidated agricultural lots, place bidding proposals, and verify trace records.</p>
+        <header className="mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              <Menu size={24} />
+            </button>
+            <div>
+              <h1>Enterprise Procurement Hub</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Browse consolidated agricultural lots, place bidding proposals, and verify trace records.</p>
+            </div>
+          </div>
         </header>
 
         {/* B2B inventory lists */}

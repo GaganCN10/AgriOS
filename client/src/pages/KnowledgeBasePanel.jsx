@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import { BookOpen, Search, Plus, RefreshCw, ShieldCheck, Eye } from 'lucide-react';
 
 const KnowledgeBasePanel = () => {

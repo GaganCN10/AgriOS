@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { Sprout, Lock, Mail, User, ShieldCheck } from 'lucide-react';
+import { Sprout, Lock, Mail, User } from 'lucide-react';
 
 const Login = () => {
   const { login, register } = useAuth();
@@ -34,72 +34,78 @@ const Login = () => {
   };
 
   return (
-    <div className="flex-center" style={{ minHeight: '100vh', padding: 20 }}>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: 420, boxShadow: 'var(--shadow-lg)' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }}>
-          <span style={{ fontSize: '3rem', marginBottom: 12 }}>🌱</span>
-          <h2 style={{ margin: 0, fontWeight: 700, letterSpacing: -0.5 }}>AgriOS Platform</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Unified Agriculture Operating System</p>
+    <div style={{ minHeight: '100vh', display: 'flex', width: '100%' }}>
+      {/* LEFT SIDE: Form */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px 48px', backgroundColor: '#ffffff' }}>
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-primary)' }}>AgriOS</div>
+          <h2 style={{ marginTop: 24, fontSize: '1.875rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>
+            {isRegistering ? 'Create your account' : 'Welcome back'}
+          </h2>
+          <p style={{ marginTop: 8, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            {isRegistering
+              ? 'Register to access the unified agriculture operating system.'
+              : 'Please enter your details to access your dashboard.'}
+          </p>
         </div>
 
-        {/*
-          Notifications are rendered globally by NotificationProvider
-        */}
-
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 420, width: '100%' }}>
           {isRegistering && (
-            <div className="input-group">
-              <span className="input-label">Full Name</span>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>Full Name</label>
               <div style={{ position: 'relative' }}>
-                <input 
-                  className="input-field" 
-                  style={{ width: '100%', paddingLeft: 40 }} 
-                  required 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)} 
-                  placeholder="Farmer or Agent Name" 
+                <User size={18} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
+                <input
+                  required
+                  style={{ width: '100%', paddingLeft: 40, padding: '10px 12px 10px 40px', fontSize: '0.95rem', border: '1px solid var(--border-glass)', borderRadius: 8 }}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Farmer or Agent Name"
                 />
-                <User size={16} className="text-muted" style={{ position: 'absolute', left: 14, top: 15 }} />
               </div>
             </div>
           )}
 
-          <div className="input-group">
-            <span className="input-label">Email Address</span>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>Email Address</label>
             <div style={{ position: 'relative' }}>
-              <input 
-                className="input-field" 
-                style={{ width: '100%', paddingLeft: 40 }} 
-                type="email" 
-                required 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                placeholder="name@agrios.org" 
+              <Mail size={18} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
+              <input
+                name="email"
+                type="email"
+                required
+                style={{ width: '100%', paddingLeft: 40, padding: '10px 12px 10px 40px', fontSize: '0.95rem', border: '1px solid var(--border-glass)', borderRadius: 8 }}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@agrios.org"
               />
-              <Mail size={16} className="text-muted" style={{ position: 'absolute', left: 14, top: 15 }} />
             </div>
           </div>
 
-          <div className="input-group">
-            <span className="input-label">Security Password</span>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>Password</label>
             <div style={{ position: 'relative' }}>
-              <input 
-                className="input-field" 
-                style={{ width: '100%', paddingLeft: 40 }} 
-                type="password" 
-                required 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder="••••••••" 
+              <Lock size={18} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
+              <input
+                name="password"
+                type="password"
+                required
+                style={{ width: '100%', paddingLeft: 40, padding: '10px 12px 10px 40px', fontSize: '0.95rem', border: '1px solid var(--border-glass)', borderRadius: 8 }}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
               />
-              <Lock size={16} className="text-muted" style={{ position: 'absolute', left: 14, top: 15 }} />
             </div>
           </div>
 
           {isRegistering && (
-            <div className="input-group">
-              <span className="input-label">Platform Role Clearance</span>
-              <select className="input-field" value={role} onChange={(e) => setRole(e.target.value)}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>Platform Role Clearance</label>
+              <select
+                style={{ width: '100%', padding: '10px 12px', fontSize: '0.95rem', border: '1px solid var(--border-glass)', borderRadius: 8, backgroundColor: '#fff' }}
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              >
                 <option value="FARMER">Farmer (Single Land Scans)</option>
                 <option value="FPO_ADMIN">FPO Manager (Bulk Harvest consolidation)</option>
                 <option value="AGRI_BUSINESS">Enterprise Buyer (B2B Procurement)</option>
@@ -108,22 +114,35 @@ const Login = () => {
             </div>
           )}
 
-          <button className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} type="submit" disabled={loading}>
-            {loading ? 'Processing Operations...' : isRegistering ? 'Register Profile' : 'Authenticate User'}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ width: '100%', padding: '10px', fontSize: '0.95rem', fontWeight: 600, borderRadius: 8, border: 'none', backgroundColor: 'var(--color-primary)', color: '#fff', cursor: 'pointer', opacity: loading ? 0.6 : 1 }}
+          >
+            {loading ? 'Processing...' : isRegistering ? 'Register Profile' : 'Authenticate User'}
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: 24, fontSize: '0.9rem' }}>
-          <button 
-            className="tab-btn" 
-            style={{ padding: 4, color: 'var(--color-primary)' }}
-            onClick={() => {
-              setIsRegistering(!isRegistering);
-              setError(null);
-            }}
+        <div style={{ marginTop: 24, textAlign: 'center', fontSize: '0.875rem', color: 'var(--text-secondary)', maxWidth: 420, width: '100%' }}>
+          {isRegistering ? 'Already have an account? ' : "Don't have an account? "}
+          <button
+            type="button"
+            onClick={() => setIsRegistering(!isRegistering)}
+            style={{ color: 'var(--color-primary)', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
           >
-            {isRegistering ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+            {isRegistering ? 'Sign In' : 'Register'}
           </button>
+        </div>
+      </div>
+
+      {/* RIGHT SIDE: Image placeholder */}
+      <div className="hidden lg:block" style={{ width: '50%', backgroundColor: '#059669', position: 'relative' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)', opacity: 0.7 }} />
+        <div style={{ position: 'absolute', bottom: 48, left: 48, right: 48 }}>
+          <h2 style={{ fontSize: '2.25rem', fontWeight: 700, color: '#fff', marginBottom: 16 }}>Innovation meets Nature.</h2>
+          <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.85)', maxWidth: 400 }}>
+            Join a community of farmers dedicated to modern agriculture through technology.
+          </p>
         </div>
       </div>
     </div>

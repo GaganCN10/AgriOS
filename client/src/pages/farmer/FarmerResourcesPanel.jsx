@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import { Package, Plus, RefreshCw, Wrench, AlertTriangle, Trash2 } from 'lucide-react';
 
 const FarmerResourcesPanel = ({ selectedFarm }) => {

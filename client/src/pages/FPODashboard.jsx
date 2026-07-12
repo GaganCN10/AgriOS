@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Users, Sprout, TrendingUp, DollarSign, Plus, Check, X, 
+import { useNotification } from '../context/NotificationContext';
+import {
+  Users, Sprout, TrendingUp, DollarSign, Plus, Check, X,
   Layers, ChevronRight, User, LogOut, ArrowRight, Building,
-  BarChart3, RefreshCw, AlertTriangle, Zap, Calendar, Truck, CreditCard
+  BarChart3, RefreshCw, AlertTriangle, Zap, Calendar, Truck, CreditCard, Menu
 } from 'lucide-react';
 import FPOForecastPanel from './fpo/FPOForecastPanel';
 import FPOTraceabilityPanel from './fpo/FPOTraceabilityPanel';
@@ -19,6 +20,7 @@ const FPODashboard = () => {
   const [loading, setLoading] = useState(true);
   const [traceRecords, setTraceRecords] = useState([]);
   const [traceLoading, setTraceLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Sale Lot compilation form
   const [showAddLot, setShowAddLot] = useState(false);
@@ -252,7 +254,7 @@ const FPODashboard = () => {
     }, 0);
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${sidebarOpen ? 'sidebar-open' : ''}`}>
       {/* Sidebar Nav */}
       <aside className="sidebar">
         <div className="flex-center" style={{ gap: 8, marginBottom: 32, justifyContent: 'flex-start' }}>
@@ -266,11 +268,11 @@ const FPODashboard = () => {
         <div className="glass-panel" style={{ padding: 12, marginBottom: 24, background: 'rgba(255,255,255,0.02)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div className="flex-center" style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--color-primary-glow)' }}>
-              <Building size={18} className="text-primary" />
+              <User size={18} className="text-primary" />
             </div>
             <div>
-              <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user.name}</p>
-              <span className="badge badge-premium" style={{ fontSize: '0.6rem', padding: '1px 6px' }}>FPO Executive</span>
+              <p style={{ fontSize: '0.8rem', fontWeight: 600 }}>{user.name}</p>
+              <span className="badge badge-premium" style={{ fontSize: '0.6rem', padding: '1px 6px' }}>FPO Admin</span>
             </div>
           </div>
         </div>
@@ -332,12 +334,20 @@ const FPODashboard = () => {
         </button>
       </aside>
 
+      {/* Sidebar backdrop for mobile */}
+      <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
+
       {/* Main Panel Content */}
       <main className="main-content">
         <header className="mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1>Farmer Producer Organisation (FPO) Admin Portal</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>Consolidate member crop cycles, aggregate yield outputs, and negotiate B2B contracts.</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              <Menu size={24} />
+            </button>
+            <div>
+              <h1>Farmer Producer Organisation (FPO) Admin Portal</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Consolidate member crop cycles, aggregate yield outputs, and negotiate B2B contracts.</p>
+            </div>
           </div>
           {activeTab === 'catalogue' && (
             <button className="btn btn-primary" onClick={() => setShowAddLot(true)}>

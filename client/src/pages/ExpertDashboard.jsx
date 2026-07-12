@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { 
-  UserCheck, ShieldAlert, Award, FileText, CheckCircle, 
-  HelpCircle, User, LogOut, RefreshCw, Check, X, ShieldCheck, CreditCard
+import { useNotification } from '../context/NotificationContext';
+import {
+  UserCheck, ShieldAlert, Award, FileText, CheckCircle,
+  HelpCircle, User, LogOut, RefreshCw, Check, X, ShieldCheck, CreditCard, Menu
 } from 'lucide-react';
 import ProfilePage from './ProfilePage';
 import SubscriptionPage from './SubscriptionPage';
@@ -13,6 +14,7 @@ const ExpertDashboard = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('diagnosis');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Selection & Validation state
   const [selectedLog, setSelectedLog] = useState(null);
@@ -78,7 +80,7 @@ const ExpertDashboard = () => {
   };
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${sidebarOpen ? 'sidebar-open' : ''}`}>
       {/* Sidebar Nav */}
       <aside className="sidebar">
         <div className="flex-center" style={{ gap: 8, marginBottom: 32, justifyContent: 'flex-start' }}>
@@ -95,7 +97,7 @@ const ExpertDashboard = () => {
               <UserCheck size={18} className="text-primary" />
             </div>
             <div>
-              <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user.name}</p>
+              <p style={{ fontSize: '0.8rem', fontWeight: 600 }}>{user.name}</p>
               <span className="badge badge-premium" style={{ fontSize: '0.6rem', padding: '1px 6px' }}>Expert Advisor</span>
             </div>
           </div>
@@ -126,6 +128,9 @@ const ExpertDashboard = () => {
         </button>
       </aside>
 
+      {/* Sidebar backdrop for mobile */}
+      <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
+
       {/* Main Panel Content */}
       <main className="main-content">
         {activeTab === 'profile' ? (
@@ -134,9 +139,16 @@ const ExpertDashboard = () => {
           <SubscriptionPage />
         ) : (
         <>
-        <header className="mb-6">
-          <h1>Agronomist Peer Verification Panel</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Review crop diseases detected by GenAI models, log corrections, and issue treatment approvals.</p>
+        <header className="mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              <Menu size={24} />
+            </button>
+            <div>
+              <h1>Agronomist Peer Verification Panel</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Review crop diseases detected by GenAI models, log corrections, and issue treatment approvals.</p>
+            </div>
+          </div>
         </header>
 
         <div className="grid-cols-2">
