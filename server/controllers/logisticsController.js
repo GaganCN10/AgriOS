@@ -142,6 +142,35 @@ exports.updateStorageEnvironment = async (req, res) => {
   }
 };
 
+exports.updateQualityGrading = async (req, res) => {
+  try {
+    const { trace_id } = req.params;
+    const { grade, moisture_percent, weight_metric_tons, visual_inspection_notes } = req.body;
+
+    if (!grade || !['A', 'B', 'C', 'REJECTED'].includes(grade)) {
+      return res.status(400).json({ error: "Valid grade (A/B/C/REJECTED) is required." });
+    }
+
+    const record = await HarvestTrace.findById(trace_id);
+    if (!record) {
+      return res.status(404).json({ error: "Traceability record not found." });
+    }
+
+    record.quality_grading = {
+      grade,
+      moisture_percent: moisture_percent !== undefined ? parseFloat(moisture_percent) : record.quality_grading?.moisture_percent,
+      weight_metric_tons: weight_metric_tons !== undefined ? parseFloat(weight_metric_tons) : record.quality_grading?.weight_metric_tons,
+      visual_inspection_notes: visual_inspection_notes !== undefined ? visual_inspection_notes : record.quality_grading?.visual_inspection_notes,
+    };
+
+    await record.save();
+    return res.status(200).json({ status: "success", trace_record: record });
+  } catch (err) {
+    console.error(`[Quality Grading Update Error]: ${err.message}`);
+    return res.status(500).json({ error: "Failed to update quality grading." });
+  }
+};
+
 exports.getDispatchTimeline = async (req, res) => {
   try {
     const { lot_id } = req.params;

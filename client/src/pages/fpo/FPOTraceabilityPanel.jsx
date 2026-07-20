@@ -1,5 +1,5 @@
-import React from 'react';
-import { Truck, RefreshCw, Package, ThermometerSun, Droplets, MapPinned, ClipboardList } from 'lucide-react';
+import React, { useState } from 'react';
+import { Truck, RefreshCw, Package, ThermometerSun, Droplets, MapPinned, ClipboardList, PenLine } from 'lucide-react';
 
 const FPOTraceabilityPanel = ({
   lots,
@@ -8,8 +8,51 @@ const FPOTraceabilityPanel = ({
   traceForm,
   setTraceForm,
   createTraceRecord,
+  apiFetch,
+  notify,
+  notifySuccess,
+  fetchTraceRecords,
 }) => {
+  const [updatingGradeId, setUpdatingGradeId] = useState(null);
+  const [gradeForm, setGradeForm] = useState({ grade: 'B', moisture_percent: '', weight_metric_tons: '', visual_inspection_notes: '' });
+
   const activeRecords = traceRecords.filter((record) => record.logistics_status !== 'RECEIVED').length;
+
+  const startUpdateGrade = (record) => {
+    setUpdatingGradeId(record._id);
+    setGradeForm({
+      grade: record.quality_grading?.grade || 'B',
+      moisture_percent: record.quality_grading?.moisture_percent ?? '',
+      weight_metric_tons: record.quality_grading?.weight_metric_tons ?? '',
+      visual_inspection_notes: record.quality_grading?.visual_inspection_notes || '',
+    });
+  };
+
+  const submitGradeUpdate = async (traceId) => {
+    try {
+      const res = await apiFetch(`http://localhost:5000/api/logistics/trace/${traceId}/quality`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          grade: gradeForm.grade,
+          moisture_percent: gradeForm.moisture_percent ? parseFloat(gradeForm.moisture_percent) : undefined,
+          weight_metric_tons: gradeForm.weight_metric_tons ? parseFloat(gradeForm.weight_metric_tons) : undefined,
+          visual_inspection_notes: gradeForm.visual_inspection_notes || undefined,
+        })
+      });
+
+      if (res.ok) {
+        notifySuccess('Quality grade updated.', 'Inspection record updated successfully.');
+        setUpdatingGradeId(null);
+        fetchTraceRecords();
+      } else {
+        const errorData = await res.json();
+        notify(errorData, 'Update Failed', errorData.error || 'Could not update quality grade.', 'Retry in a moment.');
+      }
+    } catch (err) {
+      notify(err, 'Connection Error', 'Could not reach the server while updating quality grade.', 'Retry in a moment.');
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -166,14 +209,36 @@ const FPOTraceabilityPanel = ({
                   </div>
 
                   <div style={{ display: 'flex', gap: 14, marginTop: 12, flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><ThermometerSun size={14} /> {record.storage_environment?.temperature_c ?? 'N/A'}°C</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><ThermometerSun size={14} /> {record.storage_environment?.temperature_celsius ?? 'N/A'}°C</span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Droplets size={14} /> {record.storage_environment?.humidity_percent ?? 'N/A'}%</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><MapPinned size={14} /> {record.storage_environment?.ventilation || 'Unspecified ventilation'}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><MapPinned size={14} /> {record.storage_environment?.ventilation_config || 'Unspecified ventilation'}</span>
                   </div>
 
                   {record.notes && (
                     <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{record.notes}</p>
                   )}
+
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-glass)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                    <span className="text-secondary" style={{ fontSize: '0.8rem' }}>Quality Inspection</span>
+                    {updatingGradeId === record._id ? (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <select className="input-field" style={{ minWidth: 90, padding: '6px 10px', fontSize: '0.8rem' }} value={gradeForm.grade} onChange={(e) => setGradeForm({ ...gradeForm, grade: e.target.value })}>
+                          <option value="A">A</option>
+                          <option value="B">B</option>
+                          <option value="C">C</option>
+                          <option value="REJECTED">REJECTED</option>
+                        </select>
+                        <input className="input-field" type="number" step="0.1" style={{ width: 90, padding: '6px 10px', fontSize: '0.8rem' }} placeholder="Moisture %" value={gradeForm.moisture_percent} onChange={(e) => setGradeForm({ ...gradeForm, moisture_percent: e.target.value })} />
+                        <input className="input-field" type="number" step="0.1" style={{ width: 100, padding: '6px 10px', fontSize: '0.8rem' }} placeholder="Weight (t)" value={gradeForm.weight_metric_tons} onChange={(e) => setGradeForm({ ...gradeForm, weight_metric_tons: e.target.value })} />
+                        <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => submitGradeUpdate(record._id)}>Save</button>
+                        <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setUpdatingGradeId(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => startUpdateGrade(record)}>
+                        <PenLine size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Update Grade
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             ) : (

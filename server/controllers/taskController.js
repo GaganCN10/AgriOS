@@ -1,5 +1,49 @@
 const Task = require("../models/Task");
 const Farm = require("../models/Farm");
+const Inventory = require("../models/Inventory");
+
+const TASK_CATEGORY_INVENTORY_MAP = {
+  FERTILIZER: "FERTILIZER",
+  PEST_CONTROL: "PESTICIDE",
+  IRRIGATION: "OTHER",
+  LABOR: "OTHER",
+  HARVEST: "OTHER",
+  EQUIPMENT: "EQUIPMENT_PART",
+  OTHER: "OTHER",
+};
+
+async function deductInventoryForTask(task, previousStatus) {
+  if (previousStatus === "COMPLETED") return;
+  if (task.status !== "COMPLETED") return;
+
+  const farmId = task.farm_id;
+  const category = TASK_CATEGORY_INVENTORY_MAP[task.category] || "OTHER";
+
+  const inventoryItems = await Inventory.find({ farm_id: farmId, category });
+
+  if (inventoryItems.length === 0) return;
+
+  const taskDescription = (task.description || "").toLowerCase();
+  let updated = false;
+
+  for (const item of inventoryItems) {
+    const itemNameLower = item.item_name.toLowerCase();
+    const matchedKeywords = ["fertilizer", "urea", "dap", "potash", "pesticide", "insecticide", "fungicide", "seed"];
+    const hasMatch = matchedKeywords.some(keyword => taskDescription.includes(keyword) || itemNameLower.includes(keyword));
+
+    if (!hasMatch) continue;
+
+    const deduction = item.quantity_on_hand > 0 ? Math.max(1, Math.floor(item.quantity_on_hand * 0.1)) : 0;
+    if (deduction <= 0) continue;
+
+    item.quantity_on_hand = Math.max(0, item.quantity_on_hand - deduction);
+    item.last_restocked = item.last_restocked || new Date();
+    await item.save();
+    updated = true;
+  }
+
+  return updated;
+}
 
 exports.listTasks = async (req, res) => {
   try {
@@ -93,6 +137,7 @@ exports.updateTask = async (req, res) => {
       return res.status(403).json({ error: "Unauthorized to modify this task." });
     }
 
+    const previousStatus = task.status;
     const allowedFields = ["assigned_to", "equipment_id", "status", "priority", "scheduled_start", "scheduled_end", "actual_start", "actual_end", "labor_hours", "cost_incurred_inr", "completion_notes", "title", "description", "category"];
     allowedFields.forEach(field => {
       if (updates[field] !== undefined) {
@@ -109,6 +154,13 @@ exports.updateTask = async (req, res) => {
     }
 
     await task.save();
+
+    if (task.status === "COMPLETED" && previousStatus !== "COMPLETED") {
+      const inventoryUpdated = await deductInventoryForTask(task, previousStatus);
+      res.json({ status: "success", task, inventory_deducted: inventoryUpdated });
+      return;
+    }
+
     res.json({ status: "success", task });
   } catch (err) {
     console.error("[Task Update Error]:", err.message);

@@ -3,10 +3,10 @@ const CropCycle = require('../models/CropCycle');
 const PMFBYPolicy = require('../models/PMFBYPolicy');
 const PDFDocument = require('pdfkit');
 
-const KisanCreditCardCalculator = (farm) => {
-  const MAX_BASE_LOAN = 500000;
-  const MIN_LAND_FOR_LOAN = 1;
+const MAX_BASE_LOAN = 500000;
+const MIN_LAND_FOR_LOAN = 1;
 
+function computeKCCBaseAmount(farm) {
   if (farm.calculated_area_hectares < MIN_LAND_FOR_LOAN) {
     return { eligible: false, amount: 0, reason: 'Minimum land requirement not met' };
   }
@@ -20,15 +20,31 @@ const KisanCreditCardCalculator = (farm) => {
     amount: Math.round(finalCreditAmount),
     reason: 'Qualified based on land and soil fertility',
   };
-};
+}
 
-const computeRiskScore = (farm, cycles, totalExpenses) => {
+function computeRiskScore(farm, cycles, totalExpenses) {
   let score = 650;
+
   if (cycles.length > 0) score += 50;
   if (farm.calculated_area_hectares > 2.0) score += 40;
   if (totalExpenses > 10000) score += 30;
-  return Math.min(850, score);
-};
+
+  const soilPh = farm.soil_profile.ph_level;
+  if (soilPh >= 6.0 && soilPh <= 7.5) score += 20;
+  else if (soilPh < 5.0 || soilPh > 8.5) score -= 30;
+
+  const harvestedCycles = cycles.filter(c => c.stage === 'HARVESTED');
+  if (harvestedCycles.length > 0) {
+    const successfulHarvests = harvestedCycles.filter(c => c.actual_yield_metric_tons >= c.target_yield_metric_tons * 0.7);
+    const successRate = successfulHarvests.length / harvestedCycles.length;
+    score += Math.round(successRate * 50);
+  }
+
+  const recentExpenseTrend = cycles.length > 1 ? totalExpenses / cycles.length : 0;
+  if (recentExpenseTrend > 20000) score += 10;
+
+  return Math.max(300, Math.min(850, score));
+}
 
 const riskGrade = (score) => {
   if (score >= 750) return 'LOW';
@@ -52,7 +68,7 @@ exports.calculateKCC = async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized to evaluate this farm.' });
     }
 
-    const kcc = KisanCreditCardCalculator(farm);
+    const kcc = computeKCCBaseAmount(farm);
     const cycles = await CropCycle.find({ farm_id });
     const totalExpenses = cycles.reduce(
       (sum, cycle) => sum + cycle.expense_ledger.reduce((acc, exp) => acc + exp.amount_inr, 0),
@@ -89,7 +105,7 @@ exports.bulkCalculateKCC = async (req, res) => {
 
     const results = await Promise.all(
       farms.map(async (farm) => {
-        const kcc = KisanCreditCardCalculator(farm);
+        const kcc = computeKCCBaseAmount(farm);
         const cycles = await CropCycle.find({ farm_id: farm._id });
         const totalExpenses = cycles.reduce(
           (sum, cycle) => sum + cycle.expense_ledger.reduce((acc, exp) => acc + exp.amount_inr, 0),
@@ -184,7 +200,7 @@ exports.generateDocumentPackage = async (req, res) => {
 
     const cropCycles = await CropCycle.find({ farm_id }).sort({ sowing_date: -1 });
     const pmfbyPolicy = await PMFBYPolicy.findOne({ farm_id }).sort({ createdAt: -1 });
-    const kcc = KisanCreditCardCalculator(farm);
+    const kcc = computeKCCBaseAmount(farm);
 
     const doc = new PDFDocument({ margin: 50 });
     res.setHeader('Content-Type', 'application/pdf');
@@ -246,4 +262,4 @@ exports.generateDocumentPackage = async (req, res) => {
   }
 };
 
-module.exports.KisanCreditCardCalculator = KisanCreditCardCalculator;
+module.exports.computeKCCBaseAmount = computeKCCBaseAmount;

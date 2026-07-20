@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sprout, Plus, Calendar, Check, RefreshCw, TrendingUp, Zap, AlertTriangle } from 'lucide-react';
 
 const FarmerCropOperationsPanel = ({
@@ -37,7 +37,23 @@ const FarmerCropOperationsPanel = ({
   toggleMilestone,
   fetchFinancialProfile,
   fetchCropCycles,
+  fetchCropCalendar,
 }) => {
+  const [serverMilestones, setServerMilestones] = useState([]);
+
+  useEffect(() => {
+    const loadServerMilestones = async () => {
+      if (!activeCycle || !fetchCropCalendar) {
+        setServerMilestones([]);
+        return;
+      }
+      const milestones = await fetchCropCalendar(activeCycle.crop_name, activeCycle.sowing_date);
+      setServerMilestones(milestones || []);
+    };
+    loadServerMilestones();
+  }, [activeCycle, fetchCropCalendar]);
+
+  const displayMilestones = serverMilestones.length > 0 ? serverMilestones : generateMilestones(activeCycle);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div className="glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -188,16 +204,16 @@ const FarmerCropOperationsPanel = ({
               <h2>🗓️ Crop Calendar Timeline</h2>
               <div style={{ textAlign: 'right' }}>
                 <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)' }}>
-                  {completedMilestones.length}/{generateMilestones(activeCycle).length}
+                  {completedMilestones.length}/{displayMilestones.length}
                 </span>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block' }}>Tasks Done</span>
               </div>
             </div>
             <div className="progress-bar-container" style={{ marginBottom: 20 }}>
-              <div className="progress-bar-fill" style={{ width: `${(completedMilestones.length / Math.max(generateMilestones(activeCycle).length, 1)) * 100}%` }} />
+              <div className="progress-bar-fill" style={{ width: `${(completedMilestones.length / Math.max(displayMilestones.length, 1)) * 100}%` }} />
             </div>
             <div className="milestone-timeline" style={{ maxHeight: 480, overflowY: 'auto', paddingRight: 8 }}>
-              {generateMilestones(activeCycle).map((m, idx, arr) => {
+              {displayMilestones.map((m, idx, arr) => {
                 const isCompleted = completedMilestones.includes(m.id);
                 const mDate = new Date(m.scheduled_date.split('/').reverse().join('-'));
                 const isOverdue = !isCompleted && mDate < new Date();
@@ -206,7 +222,7 @@ const FarmerCropOperationsPanel = ({
                     <div className="milestone-track">
                       <div 
                         className={`milestone-dot ${isCompleted ? 'completed' : ''} ${isOverdue ? 'overdue' : ''}`}
-                        onClick={() => toggleMilestone(m.id)}
+                        onClick={() => toggleMilestone(activeCycle._id, m.id)}
                         title={isCompleted ? 'Mark incomplete' : 'Mark complete'}
                       >
                         {isCompleted ? <Check size={14} color="#fff" /> : <span>{m.icon}</span>}

@@ -11,6 +11,7 @@ router.post("/trace/create", authorization(["FPO_ADMIN"]), logisticsController.c
 router.get("/trace/all", authorization(["FPO_ADMIN", "AGRI_BUSINESS", "EXPERT"]), logisticsController.getTraceRecords);
 router.put("/trace/:trace_id", authorization(["FPO_ADMIN"]), logisticsController.updateTraceStatus);
 router.put("/trace/:trace_id/storage", authorization(["FPO_ADMIN"]), logisticsController.updateStorageEnvironment);
+router.put("/trace/:trace_id/quality", authorization(["FPO_ADMIN", "EXPERT"]), logisticsController.updateQualityGrading);
 router.get("/trace/lot/:lot_id/timeline", authorization(["FPO_ADMIN", "AGRI_BUSINESS", "EXPERT"]), logisticsController.getDispatchTimeline);
 
 // Consolidated Lots & B2B Procurement

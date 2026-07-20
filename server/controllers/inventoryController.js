@@ -22,7 +22,8 @@ exports.listInventory = async (req, res) => {
     }
 
     const items = await Inventory.find(filter).sort({ category: 1, item_name: 1 });
-    res.json(items);
+    const lowStockItems = items.filter(item => item.quantity_on_hand <= item.safety_threshold);
+    res.json({ items, low_stock_count: lowStockItems.length, low_stock_items: lowStockItems });
   } catch (err) {
     console.error("[Inventory List Error]:", err.message);
     res.status(500).json({ error: "Failed to fetch inventory records." });

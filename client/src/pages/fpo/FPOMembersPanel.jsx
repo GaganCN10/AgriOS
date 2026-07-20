@@ -4,7 +4,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { Users, Plus, Check, X, RefreshCw, Mail, ShieldCheck } from 'lucide-react';
 
 const FPOMembersPanel = () => {
-  const { getAuthHeaders } = useAuth();
+  const { apiFetch } = useAuth();
   const { notify, notifySuccess } = useNotification();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -15,7 +15,7 @@ const FPOMembersPanel = () => {
   const fetchMembers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/fpo/members', { headers: getAuthHeaders() });
+      const res = await apiFetch('http://localhost:5000/api/fpo/members', {  });
       const data = await res.json();
       if (res.ok) setMembers(data);
     } catch (err) {
@@ -31,9 +31,9 @@ const FPOMembersPanel = () => {
     if (!memberEmail) return;
     setSubmitting(true);
     try {
-      const res = await fetch('http://localhost:5000/api/fpo/members/add', {
+      const res = await apiFetch('http://localhost:5000/api/fpo/members/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json',  },
         body: JSON.stringify({ email: memberEmail, farm_ids: [] }),
       });
       if (res.ok) {
@@ -50,9 +50,9 @@ const FPOMembersPanel = () => {
 
   const validateMember = async (memberId, status) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/fpo/members/validate/${memberId}`, {
+      const res = await apiFetch(`http://localhost:5000/api/fpo/members/validate/${memberId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json',  },
         body: JSON.stringify({ validation_status: status }),
       });
       if (res.ok) {
@@ -67,7 +67,7 @@ const FPOMembersPanel = () => {
   const removeMember = async (memberId) => {
     if (!confirm('Remove this member?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/fpo/members/remove/${memberId}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await apiFetch(`http://localhost:5000/api/fpo/members/remove/${memberId}`, { method: 'DELETE',  });
       if (res.ok) {
         fetchMembers();
         notifySuccess('Member removed.', 'The member has been removed from your FPO network.');

@@ -22,6 +22,7 @@ router.post('/crop/start', authzMiddleware(['FARMER', 'FPO_ADMIN']), farmControl
 router.get('/crop/cycles/:farmId', authzMiddleware(['FARMER', 'FPO_ADMIN', 'AGRI_BUSINESS', 'EXPERT']), farmController.getCropCyclesByFarm);
 router.post('/crop/expense', authzMiddleware(['FARMER', 'FPO_ADMIN']), farmController.addExpenseToCycle);
 router.put('/crop/stage/:cycleId', authzMiddleware(['FARMER', 'FPO_ADMIN']), farmController.updateCropStage);
+router.get('/crop/calendar', authzMiddleware(['FARMER', 'FPO_ADMIN']), farmController.getCropCalendar);
 
 // Financial / PDF export
 router.get('/pdf/:farmId', authzMiddleware(['FARMER', 'FPO_ADMIN']), farmController.exportFinancialPDF);

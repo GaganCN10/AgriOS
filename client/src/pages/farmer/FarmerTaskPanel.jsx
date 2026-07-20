@@ -4,7 +4,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { ClipboardList, Plus, RefreshCw, CheckCircle2, Circle, Trash2, AlertTriangle } from 'lucide-react';
 
 const FarmerTaskPanel = ({ selectedFarm }) => {
-  const { getAuthHeaders } = useAuth();
+  const { apiFetch } = useAuth();
   const { notify, notifySuccess } = useNotification();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,8 +20,8 @@ const FarmerTaskPanel = ({ selectedFarm }) => {
     if (!selectedFarm) return;
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/task/all?farm_id=${selectedFarm._id}`, {
-        headers: getAuthHeaders()
+      const res = await apiFetch(`http://localhost:5000/api/task/all?farm_id=${selectedFarm._id}`, {
+
       });
       const data = await res.json();
       if (res.ok) setTasks(data);
@@ -43,9 +43,9 @@ const FarmerTaskPanel = ({ selectedFarm }) => {
       return;
     }
     try {
-      const res = await fetch('http://localhost:5000/api/task/create', {
+      const res = await apiFetch('http://localhost:5000/api/task/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json',  },
         body: JSON.stringify({
           farm_id: selectedFarm._id,
           title: newTitle,
@@ -69,14 +69,18 @@ const FarmerTaskPanel = ({ selectedFarm }) => {
 
   const updateTaskStatus = async (taskId, newStatus) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/task/update/${taskId}`, {
+      const res = await apiFetch(`http://localhost:5000/api/task/update/${taskId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json',  },
         body: JSON.stringify({ status: newStatus })
       });
+      const data = await res.json();
       if (res.ok) {
         fetchTasks();
         notifySuccess('Task updated.', `Status changed to ${newStatus.replace('_', ' ')}.`);
+        if (data.inventory_deducted) {
+          notifySuccess('Inventory deducted.', 'Consumables were automatically deducted from inventory based on task category.');
+        }
       }
     } catch (err) {
       notify(err, 'Update Failed', 'Could not update task status.', 'Retry in a moment.');
@@ -85,9 +89,9 @@ const FarmerTaskPanel = ({ selectedFarm }) => {
 
   const deleteTask = async (taskId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/task/delete/${taskId}`, {
+      const res = await apiFetch(`http://localhost:5000/api/task/delete/${taskId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders()
+
       });
       if (res.ok) {
         fetchTasks();

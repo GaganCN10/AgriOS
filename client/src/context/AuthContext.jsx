@@ -98,6 +98,24 @@ export const AuthProvider = ({ children }) => {
     };
   };
 
+  const apiFetch = async (url, options = {}) => {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        ...getAuthHeaders()
+      }
+    });
+
+    if (res.status === 401) {
+      logout();
+      window.location.href = '/login';
+      throw new Error('Session expired. Please log in again.');
+    }
+
+    return res;
+  };
+
   const value = {
     token,
     user,
@@ -107,7 +125,8 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     upgradeSubscription,
-    getAuthHeaders
+    getAuthHeaders,
+    apiFetch
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

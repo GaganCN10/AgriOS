@@ -1,7 +1,107 @@
 const Farm = require("../models/Farm");
 const User = require("../models/User");
 const PMFBYPolicy = require("../models/PMFBYPolicy");
-const { KisanCreditCardCalculator } = require("./financialController");
+const { computeKCCBaseAmount, computeRiskScore } = require("./financialController");
+
+const CROP_CALENDAR_CONFIG = {
+  Rice: {
+    milestones: [
+      { label: "Land Preparation", category: "PREPARATION", days_offset: -7, icon: "🚜" },
+      { label: "Sowing / Transplanting", category: "SOWING", days_offset: 0, icon: "🌱" },
+      { label: "First Irrigation", category: "IRRIGATION", days_offset: 10, icon: "💧" },
+      { label: "First Top Dressing (Urea)", category: "FERTILIZER", days_offset: 20, icon: "🧪" },
+      { label: "Weed Control", category: "WEED_CONTROL", days_offset: 30, icon: "🌿" },
+      { label: "Pest Surveillance", category: "PEST_CONTROL", days_offset: 45, icon: "🔍" },
+      { label: "Second Top Dressing", category: "FERTILIZER", days_offset: 55, icon: "🧪" },
+      { label: "Pre-Harvest Inspection", category: "MONITORING", days_offset: 85, icon: "📋" },
+      { label: "Harvest", category: "HARVEST", days_offset: 100, icon: "🌾" },
+    ]
+  },
+  Wheat: {
+    milestones: [
+      { label: "Land Preparation", category: "PREPARATION", days_offset: -5, icon: "🚜" },
+      { label: "Sowing", category: "SOWING", days_offset: 0, icon: "🌱" },
+      { label: "First Irrigation", category: "IRRIGATION", days_offset: 15, icon: "💧" },
+      { label: "First Fertilizer Application", category: "FERTILIZER", days_offset: 25, icon: "🧪" },
+      { label: "Weed Control", category: "WEED_CONTROL", days_offset: 35, icon: "🌿" },
+      { label: "Second Fertilizer Application", category: "FERTILIZER", days_offset: 50, icon: "🧪" },
+      { label: "Pest Surveillance", category: "PEST_CONTROL", days_offset: 65, icon: "🔍" },
+      { label: "Harvest", category: "HARVEST", days_offset: 90, icon: "🌾" },
+    ]
+  },
+  Tomato: {
+    milestones: [
+      { label: "Nursery Preparation", category: "PREPARATION", days_offset: -10, icon: "🚜" },
+      { label: "Transplanting", category: "SOWING", days_offset: 0, icon: "🌱" },
+      { label: "First Irrigation", category: "IRRIGATION", days_offset: 7, icon: "💧" },
+      { label: "First Fertilizer Dose", category: "FERTILIZER", days_offset: 14, icon: "🧪" },
+      { label: "Staking / Support", category: "OTHER", days_offset: 21, icon: "🪝" },
+      { label: "Pest Control (Whitefly/Mite)", category: "PEST_CONTROL", days_offset: 30, icon: "🔍" },
+      { label: "Fruit Set Monitoring", category: "MONITORING", days_offset: 45, icon: "🍅" },
+      { label: "Harvest", category: "HARVEST", days_offset: 70, icon: "🌾" },
+    ]
+  },
+  Onion: {
+    milestones: [
+      { label: "Seedbed Preparation", category: "PREPARATION", days_offset: -5, icon: "🚜" },
+      { label: "Sowing", category: "SOWING", days_offset: 0, icon: "🌱" },
+      { label: "First Irrigation", category: "IRRIGATION", days_offset: 10, icon: "💧" },
+      { label: "Fertilizer Application", category: "FERTILIZER", days_offset: 20, icon: "🧪" },
+      { label: "Weed Control", category: "WEED_CONTROL", days_offset: 30, icon: "🌿" },
+      { label: "Bulb Development Check", category: "MONITORING", days_offset: 50, icon: "📋" },
+      { label: "Harvest", category: "HARVEST", days_offset: 75, icon: "🌾" },
+    ]
+  },
+  Potato: {
+    milestones: [
+      { label: "Seed Preparation", category: "PREPARATION", days_offset: -7, icon: "🚜" },
+      { label: "Planting", category: "SOWING", days_offset: 0, icon: "🌱" },
+      { label: "First Irrigation", category: "IRRIGATION", days_offset: 14, icon: "💧" },
+      { label: "Fertilizer Application", category: "FERTILIZER", days_offset: 25, icon: "🧪" },
+      { label: "Hilling / Earthing Up", category: "OTHER", days_offset: 35, icon: "⛰️" },
+      { label: "Pest Surveillance", category: "PEST_CONTROL", days_offset: 50, icon: "🔍" },
+      { label: "Harvest", category: "HARVEST", days_offset: 80, icon: "🌾" },
+    ]
+  },
+};
+
+function generateMilestonesForCrop(cropName, sowingDate) {
+  const config = CROP_CALENDAR_CONFIG[cropName];
+  if (!config) {
+    return [
+      { label: "Sowing", category: "SOWING", days_offset: 0, icon: "🌱" },
+      { label: "Harvest", category: "HARVEST", days_offset: 90, icon: "🌾" },
+    ];
+  }
+
+  const sowing = new Date(sowingDate);
+  return config.milestones.map((m, idx) => {
+    const scheduledDate = new Date(sowing);
+    scheduledDate.setDate(sowing.getDate() + m.days_offset);
+    return {
+      id: `milestone_${idx}`,
+      label: m.label,
+      category: m.category,
+      icon: m.icon,
+      scheduled_date: scheduledDate.toISOString().split("T")[0],
+    };
+  });
+}
+
+exports.getCropCalendar = async (req, res) => {
+  try {
+    const { crop_name, sowing_date } = req.query;
+    if (!crop_name || !sowing_date) {
+      return res.status(400).json({ error: "crop_name and sowing_date are required." });
+    }
+
+    const milestones = generateMilestonesForCrop(crop_name, sowing_date);
+    res.json({ crop_name, sowing_date, milestones });
+  } catch (err) {
+    console.error("[Crop Calendar Error]:", err.message);
+    res.status(500).json({ error: "Failed to generate crop calendar." });
+  }
+};
 exports.createFarm = async (req, res) => {
   const { farm_name, state, district, sub_district, survey_number, boundary_polygon, soil_profile } = req.body;
 
@@ -209,44 +309,44 @@ exports.exportFinancialPDF = async (req, res) => {
     doc.fillColor("#0f172a").fontSize(14).text("3. Crop Cultivation Logs & Ledgers", { underline: true });
     doc.moveDown(0.5);
 
-      if (cropCycles.length === 0) {
-        doc.fillColor("#64748b").fontSize(10).text("No historical crop cultivation cycles logged.");
-      } else {
-        cropCycles.forEach((cycle, index) => {
-          doc.fillColor("#1e293b").fontSize(11).text(`Cycle #${index + 1}: ${cycle.crop_name} (${cycle.crop_variety})`);
-          doc.fillColor("#475569").fontSize(9);
-          doc.text(`  Sowing Date: ${new Date(cycle.sowing_date).toLocaleDateString()}`);
-          doc.text(`  Staging Status: ${cycle.stage}`);
-          doc.text(`  Expected Target Yield: ${cycle.target_yield_metric_tons} Metric Tons`);
-          if (cycle.stage === "HARVESTED") {
-            doc.text(`  Actual Harvest Output: ${cycle.actual_yield_metric_tons} Metric Tons`);
-          }
+    if (cropCycles.length === 0) {
+      doc.fillColor("#64748b").fontSize(10).text("No historical crop cultivation cycles logged.");
+    } else {
+      cropCycles.forEach((cycle, index) => {
+        doc.fillColor("#1e293b").fontSize(11).text(`Cycle #${index + 1}: ${cycle.crop_name} (${cycle.crop_variety})`);
+        doc.fillColor("#475569").fontSize(9);
+        doc.text(`  Sowing Date: ${new Date(cycle.sowing_date).toLocaleDateString()}`);
+        doc.text(`  Staging Status: ${cycle.stage}`);
+        doc.text(`  Expected Target Yield: ${cycle.target_yield_metric_tons} Metric Tons`);
+        if (cycle.stage === "HARVESTED") {
+          doc.text(`  Actual Harvest Output: ${cycle.actual_yield_metric_tons} Metric Tons`);
+        }
 
-          const totalExpenses = cycle.expense_ledger.reduce((sum, exp) => sum + exp.amount_inr, 0);
-          doc.text(`  Accumulated Cultivation Cost: INR ${totalExpenses.toLocaleString("en-IN")}`);
-          doc.moveDown(0.5);
-        });
-      }
+        const totalExpenses = cycle.expense_ledger.reduce((sum, exp) => sum + exp.amount_inr, 0);
+        doc.text(`  Accumulated Cultivation Cost: INR ${totalExpenses.toLocaleString("en-IN")}`);
+        doc.moveDown(0.5);
+      });
+    }
 
-      doc.moveDown(1.5);
-      doc.fillColor("#0f172a").fontSize(14).text("4. Satellite NDVI Vegetation Index Log", { underline: true });
+    doc.moveDown(1.5);
+    doc.fillColor("#0f172a").fontSize(14).text("4. Satellite NDVI Vegetation Index Log", { underline: true });
+    doc.moveDown(0.5);
+
+    const NDVISnapshot = require("../models/NDVISnapshot");
+    const recentNDVI = await NDVISnapshot.findOne({ farm_id: farm._id }).sort({ createdAt: -1 });
+    if (recentNDVI) {
+      doc.fillColor("#334155").fontSize(10);
+      doc.text(`Latest Mean NDVI: ${recentNDVI.mean_ndvi.toFixed(3)} (Source: ${recentNDVI.source})`);
+      doc.text(`Recorded: ${new Date(recentNDVI.createdAt).toLocaleString("en-IN")}`);
       doc.moveDown(0.5);
-
-      const NDVISnapshot = require("../models/NDVISnapshot");
-      const recentNDVI = await NDVISnapshot.findOne({ farm_id: farm._id }).sort({ createdAt: -1 });
-      if (recentNDVI) {
-        doc.fillColor("#334155").fontSize(10);
-        doc.text(`Latest Mean NDVI: ${recentNDVI.mean_ndvi.toFixed(3)} (Source: ${recentNDVI.source})`);
-        doc.text(`Recorded: ${new Date(recentNDVI.createdAt).toLocaleString("en-IN")}`);
-        doc.moveDown(0.5);
-        doc.text("Vegetation Index Matrix (simplified):");
-        doc.fontSize(8).fillColor("#475569");
-        const matrixStr = recentNDVI.ndvi_matrix.map((row) => row.map((v) => v.toFixed(2)).join("  ")).join("\n");
-        doc.text(matrixStr || "No matrix data.");
-        doc.moveDown(0.5);
-      } else {
-        doc.fillColor("#64748b").fontSize(10).text("No NDVI satellite snapshots recorded for this farm.");
-      }
+      doc.text("Vegetation Index Matrix (simplified):");
+      doc.fontSize(8).fillColor("#475569");
+      const matrixStr = recentNDVI.ndvi_matrix.map((row) => row.map((v) => v.toFixed(2)).join("  ")).join("\n");
+      doc.text(matrixStr || "No matrix data.");
+      doc.moveDown(0.5);
+    } else {
+      doc.fillColor("#64748b").fontSize(10).text("No NDVI satellite snapshots recorded for this farm.");
+    }
 
     doc.moveDown(2);
     doc.strokeColor("#e2e8f0").lineWidth(1).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
@@ -286,14 +386,9 @@ exports.getFinancialProfile = async (req, res) => {
       });
     });
 
-    const kcc = KisanCreditCardCalculator(farm);
-    let creditRiskScore = 650;
-    if (cycles.length > 0) creditRiskScore += 50;
-    if (farm.calculated_area_hectares > 2.0) creditRiskScore += 40;
-    if (totalExpenses > 10000) creditRiskScore += 30;
-    creditRiskScore = Math.min(850, creditRiskScore);
-
-    const riskGrade = creditRiskScore >= 750 ? "LOW" : creditRiskScore >= 680 ? "MODERATE" : "HIGH";
+    const kcc = computeKCCBaseAmount(farm);
+    const riskScore = computeRiskScore(farm, cycles, totalExpenses);
+    const riskGrade = riskScore >= 750 ? "LOW" : riskScore >= 680 ? "MODERATE" : "HIGH";
     const sumInsured = pmfbyPolicy?.sum_insured_inr || farm.calculated_area_hectares * 50000;
     const premiumPayable = pmfbyPolicy?.premium_paid_inr || parseFloat((sumInsured * 0.02).toFixed(2));
 
@@ -304,10 +399,10 @@ exports.getFinancialProfile = async (req, res) => {
       total_expense_runrate_inr: totalExpenses,
       category_expenses: categoryTotals,
       credit_evaluation: {
-        risk_score: creditRiskScore,
+        risk_score: riskScore,
         risk_grade: riskGrade,
         kcc_recommended_limit_inr: kcc.amount,
-        loan_eligibility_status: kcc.eligible && creditRiskScore >= 680 ? "PRE_APPROVED" : "REVIEW",
+        loan_eligibility_status: kcc.eligible && riskScore >= 680 ? "PRE_APPROVED" : "REVIEW",
       },
       pmfby_insurance: {
         policy_number: pmfbyPolicy?.policy_number || (cycles.length > 0 ? `PMFBY-KAR-${farm._id.toString().slice(-6).toUpperCase()}` : "NOT_REGISTERED"),

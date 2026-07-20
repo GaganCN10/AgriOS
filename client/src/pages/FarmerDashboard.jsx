@@ -20,7 +20,7 @@ import ProfilePage from './ProfilePage';
 import SubscriptionPage from './SubscriptionPage';
 
 const FarmerDashboard = () => {
-  const { user, logout, getAuthHeaders, upgradeSubscription } = useAuth();
+  const { user, logout, apiFetch, upgradeSubscription } = useAuth();
   const { notify, notifySuccess, clearNotification } = useNotification();
   const [activeTab, setActiveTab] = useState('field-intelligence');
   
@@ -113,8 +113,8 @@ const FarmerDashboard = () => {
   const fetchFarms = async () => {
     try {
       setLoadingFarms(true);
-      const res = await fetch('http://localhost:5000/api/farm/all', {
-        headers: getAuthHeaders()
+      const res = await apiFetch('http://localhost:5000/api/farm/all', {
+
       });
       const data = await res.json();
       if (res.ok) {
@@ -153,8 +153,8 @@ const FarmerDashboard = () => {
 
   const fetchCropCycles = async (farmId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/farm/crop/cycles/${farmId}`, {
-        headers: getAuthHeaders()
+      const res = await apiFetch(`http://localhost:5000/api/farm/crop/cycles/${farmId}`, {
+
       });
       const data = await res.json();
       if (res.ok) {
@@ -170,8 +170,8 @@ const FarmerDashboard = () => {
   const fetchMandiPrices = async (state, district) => {
     try {
       setMandiLoading(true);
-      const res = await fetch(`http://localhost:5000/api/market/prices?state=${state}&district=${district}`, {
-        headers: getAuthHeaders()
+      const res = await apiFetch(`http://localhost:5000/api/market/prices?state=${state}&district=${district}`, {
+
       });
       const data = await res.json();
       if (res.ok) {
@@ -188,8 +188,8 @@ const FarmerDashboard = () => {
   const fetchWeather = async (farmId) => {
     try {
       setWeatherLoading(true);
-      const res = await fetch(`http://localhost:5000/api/weather/farm/${farmId}`, {
-        headers: getAuthHeaders()
+      const res = await apiFetch(`http://localhost:5000/api/weather/farm/${farmId}`, {
+
       });
       const data = await res.json();
       if (res.ok) {
@@ -208,8 +208,8 @@ const FarmerDashboard = () => {
   const fetchNDVI = async (farmId) => {
     try {
       setNdviLoading(true);
-      const res = await fetch(`http://localhost:5000/api/geospatial/ndvi/${farmId}`, {
-        headers: getAuthHeaders()
+      const res = await apiFetch(`http://localhost:5000/api/geospatial/ndvi/${farmId}`, {
+
       });
       const data = await res.json();
       if (res.ok && data.data) {
@@ -228,8 +228,8 @@ const FarmerDashboard = () => {
   const fetchFinancialProfile = async (farmId) => {
     try {
       setFinLoading(true);
-      const res = await fetch(`http://localhost:5000/api/farm/financial-profile/${farmId}`, {
-        headers: getAuthHeaders()
+      const res = await apiFetch(`http://localhost:5000/api/farm/financial-profile/${farmId}`, {
+
       });
       const data = await res.json();
       if (res.ok) {
@@ -355,11 +355,11 @@ const FarmerDashboard = () => {
     };
 
     try {
-      const res = await fetch('http://localhost:5000/api/farm/create', {
+      const res = await apiFetch('http://localhost:5000/api/farm/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
+
         },
         body: JSON.stringify(payload)
       });
@@ -383,11 +383,11 @@ const FarmerDashboard = () => {
   const registerCropCycle = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/farm/crop/start', {
+      const res = await apiFetch('http://localhost:5000/api/farm/crop/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
+
         },
         body: JSON.stringify({
           farm_id: selectedFarm._id,
@@ -417,11 +417,11 @@ const FarmerDashboard = () => {
       return;
     }
     try {
-      const res = await fetch('http://localhost:5000/api/farm/crop/expense', {
+      const res = await apiFetch('http://localhost:5000/api/farm/crop/expense', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
+
         },
         body: JSON.stringify({
           cycle_id: activeCycle._id,
@@ -460,11 +460,11 @@ const FarmerDashboard = () => {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/farm/crop/stage/${activeCycle._id}`, {
+      const res = await apiFetch(`http://localhost:5000/api/farm/crop/stage/${activeCycle._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
+
         },
         body: JSON.stringify({
           stage: stageUpdate,
@@ -497,11 +497,11 @@ const FarmerDashboard = () => {
     setChatError(null);
 
     try {
-      const res = await fetch('http://localhost:5000/api/analytics/advisor-chat', {
+      const res = await apiFetch('http://localhost:5000/api/analytics/advisor-chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
+
         },
         body: JSON.stringify({
           session_id: chatSession,
@@ -549,10 +549,10 @@ const FarmerDashboard = () => {
     formData.append('farm_id', selectedFarm._id);
 
     try {
-      const res = await fetch('http://localhost:5000/api/analytics/diagnose', {
+      const res = await apiFetch('http://localhost:5000/api/analytics/diagnose', {
         method: 'POST',
         headers: {
-          'Authorization': getAuthHeaders().Authorization
+
         },
         body: formData
       });
@@ -573,8 +573,8 @@ const FarmerDashboard = () => {
   const fetchMyDiseaseLogs = async () => {
     try {
       setDiagHistoryLoading(true);
-      const res = await fetch('http://localhost:5000/api/analytics/disease-logs/mine', {
-        headers: getAuthHeaders()
+      const res = await apiFetch('http://localhost:5000/api/analytics/disease-logs/mine', {
+
       });
       const data = await res.json();
       if (res.ok) {
@@ -600,9 +600,7 @@ const FarmerDashboard = () => {
     const a = document.createElement('a');
     a.href = url;
     a.setAttribute('download', `AgriOS_Financial_Pack_${selectedFarm.farm_name.replace(/\s+/g, '_')}.pdf`);
-    fetch(url, {
-      headers: getAuthHeaders()
-    })
+    apiFetch(url)
     .then(response => {
       if (!response.ok) throw new Error('PDF Generation failed');
       return response.blob();
@@ -700,6 +698,22 @@ const FarmerDashboard = () => {
     return plan.map(m => ({ ...m, scheduled_date: add(m.day) }));
   };
 
+  const fetchCropCalendar = async (cropName, sowingDate) => {
+    try {
+      const res = await apiFetch(`http://localhost:5000/api/farm/crop/calendar?crop_name=${encodeURIComponent(cropName)}&sowing_date=${encodeURIComponent(sowingDate)}`, {
+
+      });
+      const data = await res.json();
+      if (res.ok && data.milestones) {
+        return data.milestones;
+      }
+      return null;
+    } catch (err) {
+      console.error('[Crop Calendar Fetch Error]:', err);
+      return null;
+    }
+  };
+
   // Yield Prediction State
   const [yieldPrediction, setYieldPrediction] = useState(null);
   const [yieldLoading, setYieldLoading] = useState(false);
@@ -709,9 +723,9 @@ const FarmerDashboard = () => {
     setYieldLoading(true);
     setYieldPrediction(null);
     try {
-      const res = await fetch('http://localhost:5000/api/analytics/predict-yield', {
+      const res = await apiFetch('http://localhost:5000/api/analytics/predict-yield', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ crop_cycle_id: activeCycle._id, atmospheric_override: false })
       });
       const data = await res.json();
@@ -735,7 +749,7 @@ const FarmerDashboard = () => {
 
   const fetchUserAlerts = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/market/alert/all', { headers: getAuthHeaders() });
+      const res = await apiFetch('http://localhost:5000/api/market/alert/all');
       const data = await res.json();
       if (res.ok) setUserAlerts(data);
     } catch (err) { console.error(err); }
@@ -745,9 +759,9 @@ const FarmerDashboard = () => {
     e.preventDefault();
     if (!alertPrice) return;
     try {
-      const res = await fetch('http://localhost:5000/api/market/alert/create', {
+      const res = await apiFetch('http://localhost:5000/api/market/alert/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ crop_name: alertCrop, variety: alertVariety, target_price: parseFloat(alertPrice), comparison: alertDirection })
       });
       if (res.ok) {
@@ -1099,11 +1113,12 @@ const FarmerDashboard = () => {
                 yieldLoading={yieldLoading}
                 runYieldPrediction={runYieldPrediction}
                 user={user}
-                completedMilestones={completedMilestones}
+                completedMilestones={completedMilestones[activeCycle?._id] || []}
                 generateMilestones={generateMilestones}
                 toggleMilestone={toggleMilestone}
                 fetchFinancialProfile={fetchFinancialProfile}
                 fetchCropCycles={fetchCropCycles}
+                fetchCropCalendar={fetchCropCalendar}
               />
             )}
 

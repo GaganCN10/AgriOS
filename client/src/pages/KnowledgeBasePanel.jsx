@@ -4,7 +4,7 @@ import { useNotification } from '../context/NotificationContext';
 import { BookOpen, Search, Plus, RefreshCw, ShieldCheck, Eye } from 'lucide-react';
 
 const KnowledgeBasePanel = () => {
-  const { getAuthHeaders } = useAuth();
+  const { apiFetch } = useAuth();
   const { notify, notifySuccess } = useNotification();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -28,7 +28,7 @@ const KnowledgeBasePanel = () => {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       if (filterCategory) params.append('category', filterCategory);
-      const res = await fetch(`http://localhost:5000/api/knowledge/articles?${params.toString()}`, { headers: getAuthHeaders() });
+      const res = await apiFetch(`http://localhost:5000/api/knowledge/articles?${params.toString()}`, {  });
       const data = await res.json();
       if (res.ok) setArticles(data);
     } catch (err) {
@@ -42,9 +42,9 @@ const KnowledgeBasePanel = () => {
   const createArticle = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/knowledge/articles', {
+      const res = await apiFetch('http://localhost:5000/api/knowledge/articles', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json',  },
         body: JSON.stringify(newArticle),
       });
       if (res.ok) {

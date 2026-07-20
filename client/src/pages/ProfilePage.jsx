@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { User, Mail, Lock, Save, ShieldCheck } from 'lucide-react';
 
 const ProfilePage = () => {
-  const { user, getAuthHeaders, updateProfile, logout } = useAuth();
+  const { user, apiFetch, updateProfile, logout } = useAuth();
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -23,11 +23,11 @@ const ProfilePage = () => {
         payload.new_password = newPassword;
       }
 
-      const res = await fetch('http://localhost:5000/api/auth/profile', {
+      const res = await apiFetch('http://localhost:5000/api/auth/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
+
         },
         body: JSON.stringify(payload)
       });

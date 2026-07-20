@@ -13,7 +13,7 @@ import ProfilePage from './ProfilePage';
 import SubscriptionPage from './SubscriptionPage';
 
 const FPODashboard = () => {
-  const { user, logout, getAuthHeaders } = useAuth();
+  const { user, logout, apiFetch } = useAuth();
   const { notify, notifySuccess } = useNotification();
   const [activeTab, setActiveTab] = useState('catalogue');
   const [lots, setLots] = useState([]);
@@ -61,8 +61,8 @@ const FPODashboard = () => {
   const fetchLots = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/market/lot/all', {
-        headers: getAuthHeaders()
+      const res = await apiFetch('http://localhost:5000/api/market/lot/all', {
+
       });
       const data = await res.json();
       if (res.ok) {
@@ -78,8 +78,8 @@ const FPODashboard = () => {
   const fetchTraceRecords = async () => {
     try {
       setTraceLoading(true);
-      const res = await fetch('http://localhost:5000/api/logistics/trace/all', {
-        headers: getAuthHeaders()
+      const res = await apiFetch('http://localhost:5000/api/logistics/trace/all', {
+
       });
       const data = await res.json();
       if (res.ok) {
@@ -105,11 +105,11 @@ const FPODashboard = () => {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/market/lot/create', {
+      const res = await apiFetch('http://localhost:5000/api/market/lot/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
+
         },
         body: JSON.stringify({
           crop_name: cropName,
@@ -139,11 +139,11 @@ const FPODashboard = () => {
 
   const handleBidResponse = async (lotId, bidId, action) => {
     try {
-      const res = await fetch('http://localhost:5000/api/market/lot/respond', {
+      const res = await apiFetch('http://localhost:5000/api/market/lot/respond', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
+
         },
         body: JSON.stringify({
           lot_id: lotId,
@@ -182,11 +182,11 @@ const FPODashboard = () => {
         weight_metric_tons: undefined
       };
 
-      const res = await fetch('http://localhost:5000/api/logistics/trace/create', {
+      const res = await apiFetch('http://localhost:5000/api/logistics/trace/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
+
         },
         body: JSON.stringify(payload)
       });
@@ -219,9 +219,9 @@ const FPODashboard = () => {
     setForecastLoading(true);
     setForecastResult(null);
     try {
-      const res = await fetch('http://localhost:5000/api/analytics/predict-prices', {
+      const res = await apiFetch('http://localhost:5000/api/analytics/predict-prices', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           crop_name: forecastCrop,
           state: forecastState,
@@ -614,6 +614,10 @@ const FPODashboard = () => {
             traceForm={traceForm}
             setTraceForm={setTraceForm}
             createTraceRecord={createTraceRecord}
+            apiFetch={apiFetch}
+            notify={notify}
+            notifySuccess={notifySuccess}
+            fetchTraceRecords={fetchTraceRecords}
           />
         )}
 

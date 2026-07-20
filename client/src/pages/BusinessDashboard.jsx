@@ -8,7 +8,7 @@ import ProfilePage from './ProfilePage';
 import SubscriptionPage from './SubscriptionPage';
 
 const BusinessDashboard = () => {
-  const { user, logout, getAuthHeaders } = useAuth();
+  const { user, logout, apiFetch } = useAuth();
   const { notify, notifySuccess } = useNotification();
   const [activeTab, setActiveTab] = useState('catalogue');
   const [lots, setLots] = useState([]);
@@ -19,8 +19,8 @@ const BusinessDashboard = () => {
   const fetchLots = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/market/lot/all', {
-        headers: getAuthHeaders()
+      const res = await apiFetch('http://localhost:5000/api/market/lot/all', {
+
       });
       const data = await res.json();
       if (res.ok) {
@@ -45,11 +45,11 @@ const BusinessDashboard = () => {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/market/lot/bid', {
+      const res = await apiFetch('http://localhost:5000/api/market/lot/bid', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
+
         },
         body: JSON.stringify({
           lot_id: lotId,

@@ -4,7 +4,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { Package, Plus, RefreshCw, Wrench, AlertTriangle, Trash2 } from 'lucide-react';
 
 const FarmerResourcesPanel = ({ selectedFarm }) => {
-  const { getAuthHeaders } = useAuth();
+  const { apiFetch } = useAuth();
   const { notify, notifySuccess } = useNotification();
   const [activeSection, setActiveSection] = useState('inventory');
   const [inventory, setInventory] = useState([]);
@@ -27,14 +27,14 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
     if (!selectedFarm) return;
     setLoading(true);
     try {
-      const invRes = await fetch(`http://localhost:5000/api/inventory/all?farm_id=${selectedFarm._id}`, {
-        headers: getAuthHeaders()
+      const invRes = await apiFetch(`http://localhost:5000/api/inventory/all?farm_id=${selectedFarm._id}`, {
+
       });
       const invData = await invRes.json();
       if (invRes.ok) setInventory(invData);
 
-      const eqRes = await fetch(`http://localhost:5000/api/equipment/all?farm_id=${selectedFarm._id}`, {
-        headers: getAuthHeaders()
+      const eqRes = await apiFetch(`http://localhost:5000/api/equipment/all?farm_id=${selectedFarm._id}`, {
+
       });
       const eqData = await eqRes.json();
       if (eqRes.ok) setEquipment(eqData);
@@ -56,9 +56,9 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
       return;
     }
     try {
-      const res = await fetch('http://localhost:5000/api/inventory/add', {
+      const res = await apiFetch('http://localhost:5000/api/inventory/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json',  },
         body: JSON.stringify({
           farm_id: selectedFarm._id,
           item_name: invName,
@@ -88,9 +88,9 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
       return;
     }
     try {
-      const res = await fetch('http://localhost:5000/api/equipment/add', {
+      const res = await apiFetch('http://localhost:5000/api/equipment/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json',  },
         body: JSON.stringify({
           farm_id: selectedFarm._id,
           equipment_name: equipName,
@@ -112,9 +112,9 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
 
   const deleteInventory = async (itemId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/inventory/delete/${itemId}`, {
+      const res = await apiFetch(`http://localhost:5000/api/inventory/delete/${itemId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders()
+
       });
       if (res.ok) {
         fetchData();
@@ -127,9 +127,9 @@ const FarmerResourcesPanel = ({ selectedFarm }) => {
 
   const deleteEquipment = async (equipId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/equipment/delete/${equipId}`, {
+      const res = await apiFetch(`http://localhost:5000/api/equipment/delete/${equipId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders()
+
       });
       if (res.ok) {
         fetchData();

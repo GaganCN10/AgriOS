@@ -9,7 +9,7 @@ import ProfilePage from './ProfilePage';
 import SubscriptionPage from './SubscriptionPage';
 
 const ExpertDashboard = () => {
-  const { user, logout, getAuthHeaders } = useAuth();
+  const { user, logout, apiFetch } = useAuth();
   const { notify, notifySuccess } = useNotification();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,8 +25,8 @@ const ExpertDashboard = () => {
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/analytics/disease-logs', {
-        headers: getAuthHeaders()
+      const res = await apiFetch('http://localhost:5000/api/analytics/disease-logs', {
+
       });
       const data = await res.json();
       if (res.ok) {
@@ -49,11 +49,11 @@ const ExpertDashboard = () => {
 
     setSubmitting(true);
     try {
-      const res = await fetch('http://localhost:5000/api/analytics/disease-logs/verify', {
+      const res = await apiFetch('http://localhost:5000/api/analytics/disease-logs/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
+
         },
         body: JSON.stringify({
           log_id: selectedLog._id,
